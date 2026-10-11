@@ -3,7 +3,7 @@
 ## Unreleased
 
 - New setting: Run-Ahead, on the Gameplay page, makes GBA games on mGBA answer the buttons 1 or 2 frames sooner. Off by default, and gpSP, Game Boy and Game Boy Color games always play without it.
- 
+
 ## [1.6.0](https://github.com/BrandonKowalski/slot/releases/tag/v1.6.0)
 
 - Runs on the RG28XX: its panel is mounted portrait, so slot turns the picture onto it. (#35)
