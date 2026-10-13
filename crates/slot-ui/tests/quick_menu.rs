@@ -94,14 +94,11 @@ fn the_run_ahead_row_offers_off_and_one_frame() {
 fn the_rows_run_in_the_order_the_user_chose() {
     assert_eq!(
         QuickRow::MAIN.map(QuickRow::label),
-        [
-            "Screen",
-            "Gameplay",
-            "Theme",
-            "Wallpaper",
-            "Date & Time",
-            "About"
-        ]
+        ["Screen", "Gameplay", "General", "About"]
+    );
+    assert_eq!(
+        QuickRow::GENERAL.map(QuickRow::label),
+        ["Wallpaper", "Date & Time", "Theme"]
     );
     assert_eq!(
         QuickRow::SCREEN.map(QuickRow::label),
@@ -131,13 +128,15 @@ fn the_rows_run_in_the_order_the_user_chose() {
             QuickRow::Screen,
             QuickRow::DateTime,
             QuickRow::About,
-            QuickRow::Game
+            QuickRow::Game,
+            QuickRow::General
         ]
     );
     for page in [
         &QuickRow::MAIN[..],
         &QuickRow::SCREEN[..],
         &QuickRow::GAME[..],
+        &QuickRow::GENERAL[..],
     ] {
         for &row in page {
             assert_eq!(row.page(), page, "{row:?}");

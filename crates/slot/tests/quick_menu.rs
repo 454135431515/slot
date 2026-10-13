@@ -170,9 +170,7 @@ fn up_and_down_move_the_bar_and_wrap_at_the_ends() {
     for want in [
         QuickRow::Screen,
         QuickRow::Game,
-        QuickRow::Theme,
-        QuickRow::Wallpaper,
-        QuickRow::DateTime,
+        QuickRow::General,
         QuickRow::About,
         QuickRow::Screen,
     ] {
@@ -387,12 +385,14 @@ fn colour_correction_leaves_the_settings_around_it_alone() {
 fn the_arrows_change_nothing_on_a_row_that_opens() {
     let (d, mut a, _) = on_carousel();
     let before = std::fs::read(d.path().join("Config/slot.state")).expect("read slot.state");
-    for row in [QuickRow::DateTime, QuickRow::About] {
+    for row in [QuickRow::General, QuickRow::DateTime, QuickRow::About] {
         open_at(&mut a, row);
         press(&mut a, Btn::Left);
         press(&mut a, Btn::Right);
         assert_eq!(a.quick_menu(), Some(row), "an arrow left {row:?}");
-        a.apply(Action::QuickMenu);
+        while a.quick_menu().is_some() {
+            press(&mut a, Btn::B);
+        }
     }
     assert_eq!(
         std::fs::read(d.path().join("Config/slot.state")).expect("read slot.state"),
@@ -600,10 +600,12 @@ fn the_arrows_stand_only_around_the_selected_rows_value() {
         "rumble's ON is not grey"
     );
     press(&mut a, Btn::B);
+    press(&mut a, Btn::Down);
+    press(&mut a, Btn::A);
     let out = frame(&a);
     assert!(drawn(&out, 500), "the date and time is not grey");
 
-    for _ in QuickRow::Game.position()..QuickRow::DateTime.position() {
+    for _ in 0..QuickRow::DateTime.position() {
         press(&mut a, Btn::Down);
     }
     let out = frame(&a);

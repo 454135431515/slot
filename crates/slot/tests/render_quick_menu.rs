@@ -75,7 +75,7 @@ fn the_quick_menu_renders_full_screen() {
     for (name, selected) in [
         ("screen", QuickRow::Screen),
         ("game", QuickRow::Game),
-        ("date-time", QuickRow::DateTime),
+        ("general", QuickRow::General),
         ("about", QuickRow::About),
     ] {
         for _ in bar_on.position()..selected.position() {
@@ -111,7 +111,7 @@ fn the_quick_menu_renders_full_screen() {
                 (32..=36).contains(&first),
                 "{name}: {row:?}'s label starts at x {first}"
             );
-            if matches!(row, QuickRow::About | QuickRow::Screen | QuickRow::Game) {
+            if row.opens() {
                 continue;
             }
             let value = inked(&px, 360..OUT_W as usize, top);
@@ -124,6 +124,21 @@ fn the_quick_menu_renders_full_screen() {
     }
 
     tap(&mut f, &mut input, Btn::Up);
+    tap(&mut f, &mut input, Btn::A);
+    let px = composed(&mut f, &mut c, "general-page");
+    for row in QuickRow::GENERAL {
+        let top = (QUICK_TOP + QUICK_PITCH * row.position() as f32) as usize;
+        let first = *inked(&px, 0..360, top)
+            .first()
+            .unwrap_or_else(|| panic!("{row:?} has no label"));
+        assert!(
+            (32..=36).contains(&first),
+            "{row:?}'s label starts at x {first}"
+        );
+    }
+    for _ in 0..QuickRow::DateTime.position() {
+        tap(&mut f, &mut input, Btn::Down);
+    }
     tap(&mut f, &mut input, Btn::A);
     let px = composed(&mut f, &mut c, "clock");
     assert!(
@@ -151,7 +166,7 @@ fn every_fast_forward_speed_sits_on_the_rows_right_edge_and_clears_the_label() {
     tap(&mut f, &mut input, Btn::Left);
     tap(&mut f, &mut input, Btn::Left);
 
-    let top = ((OUT_H as f32 - QUICK_PITCH * QuickRow::GAME.len() as f32) / 2.0) as usize;
+    let top = QUICK_TOP as usize;
     for name in ["2x", "3x", "4x", "6x", "8x"] {
         let px = composed(&mut f, &mut c, name);
         let value = inked(&px, 360..OUT_W as usize, top);
@@ -198,15 +213,14 @@ fn the_screen_page_sets_gb_palettes_in_line_with_the_rows_above() {
     }
     let px = composed(&mut f, &mut c, "screen-page");
 
-    let page_top = (OUT_H as f32 - QUICK_PITCH * QuickRow::SCREEN.len() as f32) / 2.0;
-    let top = (page_top + QUICK_PITCH * QuickRow::GbPalettes.position() as f32) as usize;
+    let top = (QUICK_TOP + QUICK_PITCH * QuickRow::GbPalettes.position() as f32) as usize;
     assert_eq!(
         at(&px, 1, top + 26),
         [0x4d, 0x4d, 0x57],
         "the bar is not on GB Palettes"
     );
     for row in QuickRow::SCREEN {
-        let top = (page_top + QUICK_PITCH * row.position() as f32) as usize;
+        let top = (QUICK_TOP + QUICK_PITCH * row.position() as f32) as usize;
         let label = inked(&px, 0..360, top);
         let first = *label.first().expect("a row with no label");
         assert!(

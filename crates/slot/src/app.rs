@@ -684,6 +684,7 @@ impl App {
             | QuickRow::About
             | QuickRow::Screen
             | QuickRow::Game
+            | QuickRow::General
             | QuickRow::Wallpaper => None,
         }
     }
@@ -1453,7 +1454,7 @@ impl App {
                 self.phase = clock_screen(self.utc_secs(), self.state.utc_offset_min, true);
             }
             QuickRow::About => self.phase = Phase::About,
-            QuickRow::Screen | QuickRow::Game => {
+            QuickRow::Screen | QuickRow::Game | QuickRow::General => {
                 if let Some(row) = row.child() {
                     self.phase = Phase::QuickMenu { row };
                 }
@@ -1522,7 +1523,8 @@ impl App {
             | QuickRow::DateTime
             | QuickRow::About
             | QuickRow::Screen
-            | QuickRow::Game => return,
+            | QuickRow::Game
+            | QuickRow::General => return,
         }
         self.persist();
     }
