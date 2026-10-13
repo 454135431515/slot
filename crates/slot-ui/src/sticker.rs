@@ -36,7 +36,9 @@ pub struct StickerFields<'a> {
     pub dirty_digit: char,
 }
 
-pub const CREDITS: [&str; 10] = [
+pub const CREDITS: [&str; 11] = [
+    "EXQUISITE SKEUOMORPHIC",
+    "ARTWORK MADE BY MARKUS.",
     "EMULATION POWERED BY MGBA",
     "AND GPSP. UNDERLYING OS IS",
     "BASEOS BY PVAIBHAV. TYPE IS",
@@ -45,8 +47,7 @@ pub const CREDITS: [&str; 10] = [
     "THE PANEL MASK IS DERIVED",
     "FROM GIGAHERZ'S LCD3X. THE",
     "CART SOUNDS ARE MY CHILDHOOD",
-    "GAMEBOY. I WASTED WATER",
-    "BUILDING THIS WITH CLAUDE.",
+    "GAMEBOY.",
 ];
 
 pub const ORIGIN: [&str; 2] = ["S/LOT-USA", "MADE IN ITHACA"];
