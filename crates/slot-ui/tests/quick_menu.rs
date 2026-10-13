@@ -94,7 +94,14 @@ fn the_run_ahead_row_offers_off_and_one_frame() {
 fn the_rows_run_in_the_order_the_user_chose() {
     assert_eq!(
         QuickRow::MAIN.map(QuickRow::label),
-        ["Screen", "Gameplay", "Date & Time", "About"]
+        [
+            "Screen",
+            "Gameplay",
+            "Theme",
+            "Wallpaper",
+            "Date & Time",
+            "About"
+        ]
     );
     assert_eq!(
         QuickRow::SCREEN.map(QuickRow::label),
@@ -153,7 +160,9 @@ fn the_values_read_as_the_menu_prints_them() {
             "Grid",
             "Dot",
             "Simpletex",
-            "1 Frame"
+            "1 Frame",
+            "Dark",
+            "Light",
         ]
     );
     assert_eq!(QuickValue::flag(true), QuickValue::On);
