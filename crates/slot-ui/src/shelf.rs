@@ -88,6 +88,23 @@ impl Shelf {
         }
     }
 
+    pub fn restock(&mut self, carts: Vec<Cart>) -> Vec<TexId> {
+        let old: Vec<TexId> = self
+            .faces
+            .drain(..)
+            .chain(self.interiors.drain(..))
+            .flatten()
+            .collect();
+        self.shells = carts.iter().map(gb_shell_of).collect();
+        self.clears = carts.iter().map(is_clear).collect();
+        self.faces = vec![None; carts.len()];
+        self.interiors = vec![None; carts.len()];
+        self.carts = carts;
+        self.held = None;
+        self.select(0);
+        old
+    }
+
     pub fn select(&mut self, i: usize) {
         self.index = i;
         self.scroll = i as f32;

@@ -205,6 +205,8 @@ fn a_card_from_before_the_settings_keeps_all_its_values() {
             gb_palette: GbPalette::DEFAULT,
             appearance: Appearance::Dark,
             wallpaper: WallpaperPick::Default,
+            show_recents: false,
+            recents: Vec::new(),
         }
     );
 }

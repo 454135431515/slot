@@ -24,10 +24,11 @@ pub enum QuickRow {
     Theme,
     Wallpaper,
     General,
+    Recents,
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 18] = [
+    pub const ALL: [QuickRow; 19] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Screen,
@@ -46,6 +47,7 @@ impl QuickRow {
         QuickRow::Theme,
         QuickRow::Wallpaper,
         QuickRow::General,
+        QuickRow::Recents,
     ];
 
     pub const MAIN: [QuickRow; 4] = [
@@ -55,7 +57,12 @@ impl QuickRow {
         QuickRow::About,
     ];
 
-    pub const GENERAL: [QuickRow; 3] = [QuickRow::Wallpaper, QuickRow::DateTime, QuickRow::Theme];
+    pub const GENERAL: [QuickRow; 4] = [
+        QuickRow::Wallpaper,
+        QuickRow::DateTime,
+        QuickRow::Theme,
+        QuickRow::Recents,
+    ];
 
     pub const SCREEN: [QuickRow; 4] = [
         QuickRow::GbaShader,
@@ -91,7 +98,9 @@ impl QuickRow {
             | QuickRow::Turbo
             | QuickRow::Rumble
             | QuickRow::EjectSave => &QuickRow::GAME,
-            QuickRow::Wallpaper | QuickRow::DateTime | QuickRow::Theme => &QuickRow::GENERAL,
+            QuickRow::Wallpaper | QuickRow::DateTime | QuickRow::Theme | QuickRow::Recents => {
+                &QuickRow::GENERAL
+            }
             _ => &QuickRow::MAIN,
         }
     }
@@ -138,6 +147,7 @@ impl QuickRow {
             QuickRow::Theme => "Theme",
             QuickRow::Wallpaper => "Wallpaper",
             QuickRow::General => "General",
+            QuickRow::Recents => "Recents",
         }
     }
 

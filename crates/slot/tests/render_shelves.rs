@@ -818,3 +818,43 @@ fn no_frame_of_the_travel_jumps_further_than_the_cartridge_is_tall() {
         );
     }
 }
+
+#[test]
+fn a_recents_shelf_rings_paks_and_carts_together() {
+    let Ok(surface) = HeadlessSurface::new() else {
+        return;
+    };
+    let Ok(mut c) = Compositor::new(&surface) else {
+        return;
+    };
+    let d = tmp_root_with_carts(&["Emerald", "Fusion"]);
+    put_game_boy_carts(d.path());
+    let mut s = slot_store::read_slot_state(d.path());
+    s.clock_set = true;
+    s.show_recents = true;
+    s.played(CartPlatform::Gba, "Fusion");
+    s.played(CartPlatform::Gba, "Emerald");
+    s.played(CartPlatform::Gb, "Tetris Rosy Retrospection");
+    slot_store::write_slot_state(d.path(), &s).expect("write slot.state");
+    let mut f = Frontend::boot(Box::new(SimPlatform::at(d.path().to_path_buf())));
+    f.upload_faces(&mut c);
+    let mut input = Script(VecDeque::new());
+    f.advance(&mut input);
+    let_the_name_in(&mut f, &mut c, &mut input);
+    let px = composed(&mut f, &mut c, "recents");
+    let (ax, ay) = alone();
+    assert!(
+        apart(patch(&px, ax, ay), ground((ax, ay))) > 60,
+        "no pak in the middle of the recents shelf"
+    );
+    for (side, at) in [("left", SIDE_LEFT), ("right", SIDE_RIGHT)] {
+        assert!(
+            apart(patch(&px, at.0, at.1), ground(at)) > 60,
+            "the recents shelf left its {side} bare"
+        );
+    }
+    assert!(
+        name_ink(&px) > 20,
+        "the recents shelf came up without its name in the slot"
+    );
+}

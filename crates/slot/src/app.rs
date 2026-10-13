@@ -263,8 +263,9 @@ pub enum Phase {
 
 pub struct App {
     phase: Phase,
-    shelves: Vec<(Platform, Shelf)>,
+    shelves: Vec<(Option<Platform>, Shelf)>,
     shelf_at: usize,
+    orphaned: Vec<TexId>,
     play_held: Option<Millis>,
     refusal: Option<Refusal>,
     refused_from: Option<f32>,
@@ -368,11 +369,13 @@ pub struct FaceWant {
     pub on_screen: bool,
 }
 
-fn shelves_of(carts: Vec<Cart>) -> Vec<(Platform, Shelf)> {
-    let mut rows: Vec<(Platform, Vec<Cart>)> =
-        Platform::ALL.iter().map(|p| (*p, Vec::new())).collect();
+fn shelves_of(carts: Vec<Cart>) -> Vec<(Option<Platform>, Shelf)> {
+    let mut rows: Vec<(Option<Platform>, Vec<Cart>)> = std::iter::once(None)
+        .chain(Platform::ALL.iter().map(|p| Some(*p)))
+        .map(|p| (p, Vec::new()))
+        .collect();
     for cart in carts {
-        if let Some((_, row)) = rows.iter_mut().find(|(p, _)| *p == cart.platform) {
+        if let Some((_, row)) = rows.iter_mut().find(|(p, _)| *p == Some(cart.platform)) {
             row.push(cart);
         }
     }
@@ -396,6 +399,7 @@ impl App {
             phase: Phase::Shelf,
             shelves,
             shelf_at,
+            orphaned: Vec::new(),
             play_held: None,
             refusal: None,
             refused_from: None,
@@ -497,6 +501,10 @@ impl App {
         let mut app = App::new(carts);
         app.root = Some(root.to_path_buf());
         app.state = read_slot_state(root);
+        app.restock_recents();
+        if !app.shelves[0].1.carts.is_empty() {
+            app.shelf_at = 0;
+        }
         if app.state.clock_set {
             app.start();
         } else {
@@ -600,7 +608,7 @@ impl App {
         self.shelves
             .iter()
             .enumerate()
-            .filter(|(_, (p, _))| platform.is_none_or(|want| *p == want))
+            .filter(|(_, (p, _))| platform.is_none_or(|want| p.is_none_or(|p| p == want)))
             .find_map(|(at, (_, shelf))| {
                 shelf
                     .carts
@@ -675,6 +683,7 @@ impl App {
             QuickRow::Turbo => Some(QuickValue::flag(self.state.turbo)),
             QuickRow::Rewind => Some(QuickValue::flag(self.state.rewind)),
             QuickRow::RunAhead => QuickValue::frames(self.state.runahead),
+            QuickRow::Recents => Some(QuickValue::flag(self.state.show_recents)),
             QuickRow::Theme => Some(if self.light() {
                 QuickValue::Light
             } else {
@@ -817,7 +826,11 @@ impl App {
 
     pub fn shelf_platform_name(&self) -> Option<&'static str> {
         self.next_shelf(1)?;
-        Some(self.shelves[self.shelf_at].0.name())
+        Some(
+            self.shelves[self.shelf_at]
+                .0
+                .map_or("Recents", Platform::name),
+        )
     }
 
     pub fn set_battery_percent_face(&mut self, face: TexId, w: u32) {
@@ -835,6 +848,7 @@ impl App {
     pub fn carts(&self) -> impl Iterator<Item = &Cart> {
         self.shelves
             .iter()
+            .filter(|(p, _)| p.is_some())
             .flat_map(|(_, shelf)| shelf.carts.iter())
     }
 
@@ -900,7 +914,7 @@ impl App {
 
     pub fn shed_faces(&mut self) -> Vec<TexId> {
         let neighbours = self.neighbour_shelves();
-        let mut shed = Vec::new();
+        let mut shed = std::mem::take(&mut self.orphaned);
         for (at, (_, shelf)) in self.shelves.iter_mut().enumerate() {
             let keep = if at == self.shelf_at {
                 shelf.around(FACE_KEEP)
@@ -1471,6 +1485,7 @@ impl App {
             | QuickRow::RunAhead
             | QuickRow::Rumble
             | QuickRow::Theme
+            | QuickRow::Recents
             | QuickRow::Wallpaper => {}
         }
     }
@@ -1478,6 +1493,12 @@ impl App {
     fn change_setting(&mut self, row: QuickRow, right: bool) {
         if row == QuickRow::Wallpaper {
             self.cycle_wallpaper(right);
+            self.persist();
+            return;
+        }
+        if row == QuickRow::Recents {
+            self.state.show_recents = !self.state.show_recents;
+            self.restock_recents();
             self.persist();
             return;
         }
@@ -1520,6 +1541,7 @@ impl App {
             }
             QuickRow::Theme => s.appearance = s.appearance.toggle(),
             QuickRow::Wallpaper
+            | QuickRow::Recents
             | QuickRow::DateTime
             | QuickRow::About
             | QuickRow::Screen
@@ -1970,8 +1992,48 @@ impl App {
         }
     }
 
+    fn restock_recents(&mut self) {
+        let carts: Vec<Cart> = match self.state.show_recents {
+            true => self
+                .state
+                .recents
+                .iter()
+                .filter_map(|r| {
+                    self.carts()
+                        .find(|c| c.platform == r.platform && c.stem == r.stem)
+                })
+                .cloned()
+                .collect(),
+            false => Vec::new(),
+        };
+        let stocked = &self.shelves[0].1.carts;
+        if stocked.len() == carts.len()
+            && stocked
+                .iter()
+                .zip(&carts)
+                .all(|(a, b)| a.platform == b.platform && a.stem == b.stem)
+        {
+            return;
+        }
+        let old = self.shelves[0].1.restock(carts);
+        self.orphaned.extend(old);
+        let empty = self.shelves[0].1.carts.is_empty();
+        if self.shelf_at == 0 && empty {
+            self.shelf_at = self.next_shelf(1).unwrap_or(0);
+        }
+    }
+
     fn record_cart(&mut self, cart: Option<String>) {
         let platform = self.seated_cart().map(|c| c.platform);
+        if let (Some(stem), Some(platform)) = (&cart, platform) {
+            let first = self.state.recents.first();
+            if first.is_none_or(|r| r.platform != platform || r.stem != *stem) {
+                let stem = stem.clone();
+                self.state.played(platform, &stem);
+                self.restock_recents();
+                self.persist();
+            }
+        }
         if self.state.cart == cart && self.state.cart_platform == platform {
             return;
         }
