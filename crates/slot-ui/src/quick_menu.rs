@@ -391,6 +391,7 @@ const CARET_PX: f32 = 24.0;
 const LEGEND_Y: f32 = 427.0;
 pub const QUICK_SPLIT: f32 = LEGEND_Y - 2.0;
 const DIM_INK: [u8; 3] = [0x9a, 0x9a, 0xa4];
+const PANEL_GAP: f32 = 12.0;
 
 pub fn quick_label_face(row: QuickRow, lit: bool) -> UndoFace {
     quick_text_face(row.label(), if lit { MENU_INK } else { DIM_INK })
@@ -516,11 +517,28 @@ pub struct QuickMenu<'a> {
     pub wallpaper: Option<[(TexId, u32, u32); 2]>,
     pub faces: Option<&'a QuickMenuFaces>,
     pub ground: Option<TexId>,
+    pub palette: Option<[(TexId, u32, u32); 2]>,
+    pub over_game: bool,
 }
 
 impl QuickMenu<'_> {
     pub fn draw(&self, out: &mut Vec<Draw>) {
-        draw_menu_ground(self.ground, out);
+        match (self.over_game, self.row.page() == QuickRow::PLAY_SCREEN) {
+            (false, _) => draw_menu_ground(self.ground, out),
+            (true, panel) => {
+                let y = match panel {
+                    true => quick_row_top(self.row.page()[0], self.hidden) - PANEL_GAP,
+                    false => 0.0,
+                };
+                out.push(Draw::Rect {
+                    x: 0.0,
+                    y,
+                    w: OUT_W as f32,
+                    h: OUT_H as f32 - y,
+                    colour: [0.0, 0.0, 0.0, GROUND_SCRIM],
+                });
+            }
+        }
         let Some(faces) = self.faces else {
             return;
         };
@@ -551,6 +569,7 @@ impl QuickMenu<'_> {
             let value = match row {
                 QuickRow::DateTime => self.clock.map(|c| c[lit as usize]),
                 QuickRow::Wallpaper => self.wallpaper.map(|c| c[lit as usize]),
+                QuickRow::Palette => self.palette.map(|c| c[lit as usize]),
                 _ => self.values[row.index()]
                     .and_then(|v| faces.values.get(v.index()))
                     .map(|v| v[lit as usize]),
@@ -612,7 +631,11 @@ pub fn draw_menu_ground(ground: Option<TexId>, out: &mut Vec<Draw>) {
 }
 
 pub fn quick_row_top(row: QuickRow, hidden: &[QuickRow]) -> f32 {
-    let top = (LEGEND_Y - QUICK_PITCH * row.shown(hidden).len() as f32) / 2.0;
+    let rows = QUICK_PITCH * row.shown(hidden).len() as f32;
+    let top = match row.page() == QuickRow::PLAY_SCREEN {
+        true => LEGEND_Y - PANEL_GAP - rows,
+        false => (LEGEND_Y - rows) / 2.0,
+    };
     top + QUICK_PITCH * row.position(hidden) as f32
 }
 

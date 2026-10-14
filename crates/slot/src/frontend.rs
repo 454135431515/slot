@@ -54,6 +54,7 @@ pub struct Frontend {
     clocks: Clocks,
     about: AboutFace,
     quick_clock: QuickClock,
+    quick_palette: QuickPalette,
     wallpaper: WallpaperSync,
     look: Option<ShelfLook>,
     link_shot: Option<TexId>,
@@ -74,6 +75,13 @@ struct QuickClock {
     dim: Option<TexId>,
     lit: Option<TexId>,
     shown: String,
+}
+
+#[derive(Default)]
+struct QuickPalette {
+    dim: Option<TexId>,
+    lit: Option<TexId>,
+    shown: &'static str,
 }
 
 #[derive(Default)]
@@ -157,6 +165,7 @@ impl Frontend {
             clocks: Clocks::default(),
             about: AboutFace::default(),
             quick_clock: QuickClock::default(),
+            quick_palette: QuickPalette::default(),
             wallpaper: WallpaperSync::default(),
             look: None,
             link_shot: None,
@@ -490,6 +499,7 @@ impl Frontend {
         sync_clock(self.session.app_mut(), compositor, &mut self.clocks);
         sync_about(self.session.app_mut(), compositor, &mut self.about);
         sync_quick_clock(self.session.app_mut(), compositor, &mut self.quick_clock);
+        sync_quick_palette(self.session.app_mut(), compositor, &mut self.quick_palette);
         sync_wallpaper(self.session.app_mut(), compositor, &mut self.wallpaper);
         sync_core_picker(
             self.session.app_mut(),
@@ -945,6 +955,22 @@ fn sync_quick_clock(app: &mut App, compositor: &mut Compositor, state: &mut Quic
     let dim = upload(compositor, &mut state.dim, dim);
     let lit = upload(compositor, &mut state.lit, lit);
     app.set_quick_clock_faces((dim, dim_size.0, dim_size.1), (lit, lit_size.0, lit_size.1));
+    state.shown = text;
+}
+
+fn sync_quick_palette(app: &mut App, compositor: &mut Compositor, state: &mut QuickPalette) {
+    if app.in_game_menu().is_none() {
+        return;
+    }
+    let text = app.gb_palette_label();
+    if text == state.shown {
+        return;
+    }
+    let (dim, lit) = (quick_value_face(text, false), quick_value_face(text, true));
+    let (dim_size, lit_size) = ((dim.w, dim.h), (lit.w, lit.h));
+    let dim = upload(compositor, &mut state.dim, dim);
+    let lit = upload(compositor, &mut state.lit, lit);
+    app.set_quick_palette_faces((dim, dim_size.0, dim_size.1), (lit, lit_size.0, lit_size.1));
     state.shown = text;
 }
 

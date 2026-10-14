@@ -2481,6 +2481,8 @@ impl App {
                 wallpaper: self.quick_wallpaper_faces,
                 faces: self.quick_menu_faces.as_ref(),
                 ground: self.menu_ground(),
+                palette: None,
+                over_game: false,
             }
             .draw(out),
             Phase::Shelf => {
@@ -2553,6 +2555,20 @@ impl App {
                 });
                 return;
             }
+        }
+        if let (Some(row), Phase::Playing { .. }) = (self.in_game_menu, &self.phase) {
+            QuickMenu {
+                row,
+                hidden: self.in_game_hidden(),
+                values: QuickRow::ALL.map(|r| self.quick_value(r)),
+                clock: None,
+                wallpaper: None,
+                faces: self.quick_menu_faces.as_ref(),
+                ground: None,
+                palette: self.quick_palette_faces,
+                over_game: true,
+            }
+            .draw(out);
         }
         if let Some(picker) = self.core_picker_shown() {
             self.draw_core_picker(&picker, out);
