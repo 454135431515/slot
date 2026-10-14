@@ -484,10 +484,18 @@ fn a_card_with_one_colour_correction_setting_starts_both_systems_from_it() {
 #[test]
 fn a_wallpaper_tint_it_does_not_know_reads_as_off() {
     let d = tmp_root();
-    std::fs::write(
-        d.path().join("Config/slot.state"),
-        "clock_set=1\nwallpaper=a.png\nwallpaper_tint=blinding\n",
-    )
-    .unwrap();
-    assert_eq!(read_slot_state(d.path()).wallpaper_tint, WallpaperTint::Off);
+    let known = "cart=Emerald\nbrightness=3\nblue_light=1\nvolume=40\nmuted=0\nclock_set=1\nutc_offset_min=0\n";
+    for (line, want) in [
+        ("wallpaper_tint=high", WallpaperTint::High),
+        ("wallpaper_tint=blinding", WallpaperTint::Off),
+    ] {
+        std::fs::write(
+            d.path().join("Config/slot.state"),
+            format!("{known}wallpaper=a.png\n{line}\n"),
+        )
+        .unwrap();
+        let s = read_slot_state(d.path());
+        assert_eq!(s.wallpaper, WallpaperPick::File("a.png".into()), "{line}");
+        assert_eq!(s.wallpaper_tint, want, "{line}");
+    }
 }
