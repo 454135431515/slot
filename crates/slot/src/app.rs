@@ -675,7 +675,10 @@ impl App {
         match row {
             QuickRow::FastForward => QuickValue::speed(self.state.ff_speed),
             QuickRow::FastForwardSound => Some(QuickValue::flag(self.state.ff_sound)),
-            QuickRow::ColourCorrection => Some(QuickValue::flag(self.state.colour_correction)),
+            QuickRow::GbaColourCorrection => {
+                Some(QuickValue::flag(self.state.colour_correction_gba))
+            }
+            QuickRow::GbColourCorrection => Some(QuickValue::flag(self.state.colour_correction_gb)),
             QuickRow::GbPalettes => Some(QuickValue::flag(self.state.gb_palettes)),
             QuickRow::GbaShader => Some(shader_value(self.state.shader_gba)),
             QuickRow::GbShader => Some(shader_value(self.state.shader_gb)),
@@ -684,7 +687,11 @@ impl App {
             QuickRow::Turbo => Some(QuickValue::flag(self.state.turbo)),
             QuickRow::Rewind => Some(QuickValue::flag(self.state.rewind)),
             QuickRow::RunAhead => QuickValue::frames(self.state.runahead),
-            QuickRow::Recents => Some(QuickValue::flag(self.state.show_recents)),
+            QuickRow::Recents => Some(if self.state.show_recents {
+                QuickValue::Show
+            } else {
+                QuickValue::Hide
+            }),
             QuickRow::Theme => Some(if self.light() {
                 QuickValue::Light
             } else {
@@ -765,6 +772,15 @@ impl App {
             (at + n - 1) % n
         };
         self.state.wallpaper = choices[next].clone();
+    }
+
+    fn menu_ground(&self) -> Option<TexId> {
+        match &self.state.wallpaper {
+            WallpaperPick::None => None,
+            WallpaperPick::Default | WallpaperPick::Blur => self.blur.or(self.ground),
+            WallpaperPick::Random if !self.random_drawn() => self.blur.or(self.ground),
+            WallpaperPick::File(_) | WallpaperPick::Random => self.wallpaper.or(self.ground),
+        }
     }
 
     fn draw_background(&self, out: &mut Vec<Draw>) {
@@ -1237,7 +1253,18 @@ impl App {
     }
 
     pub fn colour_correction(&self) -> bool {
-        self.state.colour_correction
+        self.colour_correction_for(self.playing_platform())
+    }
+
+    fn playing_platform(&self) -> Platform {
+        self.seated_cart().map_or(self.platform, |c| c.platform)
+    }
+
+    pub fn colour_correction_for(&self, platform: Platform) -> bool {
+        match platform {
+            Platform::Gba => self.state.colour_correction_gba,
+            Platform::Gb | Platform::Gbc => self.state.colour_correction_gb,
+        }
     }
 
     pub fn light(&self) -> bool {
@@ -1541,7 +1568,8 @@ impl App {
             | QuickRow::Rewind
             | QuickRow::FastForward
             | QuickRow::FastForwardSound
-            | QuickRow::ColourCorrection
+            | QuickRow::GbaColourCorrection
+            | QuickRow::GbColourCorrection
             | QuickRow::GbaShader
             | QuickRow::GbShader
             | QuickRow::GbPalettes
@@ -1575,9 +1603,13 @@ impl App {
                 s.ff_speed = to;
             }
             QuickRow::FastForwardSound => s.ff_sound = !s.ff_sound,
-            QuickRow::ColourCorrection => {
-                s.colour_correction = !s.colour_correction;
-                self.colour_pending = Some(s.colour_correction);
+            QuickRow::GbaColourCorrection => {
+                s.colour_correction_gba = !s.colour_correction_gba;
+                self.colour_pending = Some(self.colour_correction());
+            }
+            QuickRow::GbColourCorrection => {
+                s.colour_correction_gb = !s.colour_correction_gb;
+                self.colour_pending = Some(self.colour_correction());
             }
             QuickRow::GbaShader => {
                 let to = s.shader_gba.step(&Shader::GBA, right);
@@ -1662,8 +1694,12 @@ impl App {
             return true;
         }
         if action == Action::ColourCorrectionToggle {
-            self.change_setting(QuickRow::ColourCorrection, true);
-            let said = match self.state.colour_correction {
+            let row = match self.playing_platform() {
+                Platform::Gba => QuickRow::GbaColourCorrection,
+                Platform::Gb | Platform::Gbc => QuickRow::GbColourCorrection,
+            };
+            self.change_setting(row, true);
+            let said = match self.colour_correction() {
                 true => Toast::ColourOn,
                 false => Toast::ColourOff,
             };
@@ -2258,6 +2294,7 @@ impl App {
                 clock: self.quick_clock_faces,
                 wallpaper: self.quick_wallpaper_faces,
                 faces: self.quick_menu_faces.as_ref(),
+                ground: self.menu_ground(),
             }
             .draw(out),
             Phase::Shelf => {
@@ -2285,7 +2322,7 @@ impl App {
                 );
             }
             Phase::About => {
-                self.draw_background(out);
+                slot_ui::draw_menu_ground(self.menu_ground(), out);
                 draw_sticker(self.sticker_face, out);
                 return;
             }

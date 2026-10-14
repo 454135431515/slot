@@ -21,8 +21,8 @@ fn ink_columns(f: &UndoFace) -> (u32, u32) {
 #[test]
 fn the_type_sits_exactly_menu_pad_in_from_both_sides_of_its_face() {
     for f in [
-        quick_label_face(QuickRow::FastForwardSound),
-        quick_label_face(QuickRow::Rumble),
+        quick_label_face(QuickRow::FastForwardSound, true),
+        quick_label_face(QuickRow::Rumble, true),
         quick_value_face("Off", false),
         quick_value_face(QuickValue::Speed6.text(), true),
         quick_value_face("SEP 15 16:35", true),
@@ -49,8 +49,8 @@ fn a_long_label_is_set_as_large_as_a_short_one() {
             .filter(|&y| (0..f.w).any(|x| inked(f, x, y)))
             .count()
     };
-    let long = tall(&quick_label_face(QuickRow::FastForwardSound));
-    let short = tall(&quick_label_face(QuickRow::Rumble));
+    let long = tall(&quick_label_face(QuickRow::FastForwardSound, true));
+    let short = tall(&quick_label_face(QuickRow::Rumble, true));
     assert!(long + 1 >= short, "{long} rows of ink against {short}");
 }
 
@@ -94,18 +94,19 @@ fn the_run_ahead_row_offers_off_and_one_frame() {
 fn the_rows_run_in_the_order_the_user_chose() {
     assert_eq!(
         QuickRow::MAIN.map(QuickRow::label),
-        ["Screen", "Gameplay", "General", "About"]
+        ["General", "Screen", "Gameplay", "About"]
     );
     assert_eq!(
         QuickRow::GENERAL.map(QuickRow::label),
-        ["Wallpaper", "Date & Time", "Theme", "Recents"]
+        ["Wallpaper", "Theme", "Recents", "Date & Time"]
     );
     assert_eq!(
         QuickRow::SCREEN.map(QuickRow::label),
         [
             "GBA Shader",
-            "GB / GBC Shader",
-            "Color Correction",
+            "GBA Color Correction",
+            "GB/C Shader",
+            "GB/C Color Correction",
             "GB Palettes"
         ]
     );
@@ -162,6 +163,8 @@ fn the_values_read_as_the_menu_prints_them() {
             "1 Frame",
             "Dark",
             "Light",
+            "Show",
+            "Hide",
         ]
     );
     assert_eq!(QuickValue::flag(true), QuickValue::On);
@@ -221,4 +224,34 @@ fn the_two_carets_point_different_ways() {
         slot_ui::quick_caret_face(true).rgba,
         "a caret glyph is missing from the symbols font"
     );
+}
+
+#[test]
+fn the_pointer_is_a_crisp_pixel_arrow_in_the_menus_ink() {
+    let p = slot_ui::quick_pointer_face();
+    assert_eq!(p.w, 32);
+    let opaque: Vec<&[u8]> = p.rgba.chunks(4).filter(|c| c[3] > 0).collect();
+    assert!(!opaque.is_empty(), "an empty pointer");
+    assert!(
+        opaque.iter().all(|c| c == &[0xf6, 0xf4, 0xef, 0xff]),
+        "the pointer is not one solid colour"
+    );
+    assert!(
+        p.rgba.chunks(4).all(|c| c[3] == 0 || c[3] == 0xff),
+        "the arrow was smoothed, not drawn in pixels"
+    );
+}
+
+#[test]
+fn a_label_is_grey_until_its_row_is_in_hand() {
+    let inkiest = |lit| {
+        let f = quick_label_face(QuickRow::Rumble, lit);
+        f.rgba
+            .chunks(4)
+            .max_by_key(|p| p[3])
+            .map(|p| [p[0], p[1], p[2]])
+            .expect("an empty face")
+    };
+    assert_eq!(inkiest(true), [0xf6, 0xf4, 0xef]);
+    assert_eq!(inkiest(false), [0x9a, 0x9a, 0xa4]);
 }

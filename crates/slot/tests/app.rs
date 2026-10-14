@@ -2120,6 +2120,21 @@ fn the_colour_shortcut_reaches_the_core_already_running() {
 }
 
 #[test]
+fn the_colour_shortcut_flips_only_the_system_that_is_playing() {
+    let d = common::tmp_root_with_gb_carts(&["Tetris", "Zelda"]);
+    let (mut s, _motor) = common::session_with_platform(d.path());
+    s.app_mut().apply(slot_input::Action::Insert);
+    s.app_mut()
+        .apply(slot_input::Action::ColourCorrectionToggle);
+    let saved = slot_store::read_slot_state(d.path());
+    assert_eq!(
+        (saved.colour_correction_gba, saved.colour_correction_gb),
+        (false, true),
+        "a Game Boy game's shortcut did not land on the Game Boy setting alone"
+    );
+}
+
+#[test]
 fn the_colour_shortcut_names_the_state_it_arrived_at() {
     let d = common::tmp_root_with_carts(&["Emerald", "Fusion"]);
     let (mut s, _motor) = common::session_with_platform(d.path());

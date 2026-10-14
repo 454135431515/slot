@@ -1,7 +1,7 @@
 use crate::draw::{Draw, TexId, OUT_H, OUT_W};
 use crate::plate::{arrows_hint_face, centred_hints, hint_face, UndoFace, HINT_H, LEGEND_GAP};
 use crate::power_menu::{MENU_H, MENU_INK, MENU_PAD, MENU_PX};
-use crate::slot_chrome::{edge, opening};
+use crate::slot_chrome::opening;
 use crate::text;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -14,7 +14,8 @@ pub enum QuickRow {
     About,
     GbaShader,
     GbShader,
-    ColourCorrection,
+    GbaColourCorrection,
+    GbColourCorrection,
     Game,
     EjectSave,
     Turbo,
@@ -28,7 +29,7 @@ pub enum QuickRow {
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 19] = [
+    pub const ALL: [QuickRow; 20] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Screen,
@@ -37,7 +38,8 @@ impl QuickRow {
         QuickRow::About,
         QuickRow::GbaShader,
         QuickRow::GbShader,
-        QuickRow::ColourCorrection,
+        QuickRow::GbaColourCorrection,
+        QuickRow::GbColourCorrection,
         QuickRow::Game,
         QuickRow::EjectSave,
         QuickRow::Turbo,
@@ -51,23 +53,24 @@ impl QuickRow {
     ];
 
     pub const MAIN: [QuickRow; 4] = [
+        QuickRow::General,
         QuickRow::Screen,
         QuickRow::Game,
-        QuickRow::General,
         QuickRow::About,
     ];
 
     pub const GENERAL: [QuickRow; 4] = [
         QuickRow::Wallpaper,
-        QuickRow::DateTime,
         QuickRow::Theme,
         QuickRow::Recents,
+        QuickRow::DateTime,
     ];
 
-    pub const SCREEN: [QuickRow; 4] = [
+    pub const SCREEN: [QuickRow; 5] = [
         QuickRow::GbaShader,
+        QuickRow::GbaColourCorrection,
         QuickRow::GbShader,
-        QuickRow::ColourCorrection,
+        QuickRow::GbColourCorrection,
         QuickRow::GbPalettes,
     ];
 
@@ -89,7 +92,8 @@ impl QuickRow {
         match self {
             QuickRow::GbaShader
             | QuickRow::GbShader
-            | QuickRow::ColourCorrection
+            | QuickRow::GbaColourCorrection
+            | QuickRow::GbColourCorrection
             | QuickRow::GbPalettes => &QuickRow::SCREEN,
             QuickRow::FastForward
             | QuickRow::FastForwardSound
@@ -136,8 +140,9 @@ impl QuickRow {
             QuickRow::DateTime => "Date & Time",
             QuickRow::About => "About",
             QuickRow::GbaShader => "GBA Shader",
-            QuickRow::GbShader => "GB / GBC Shader",
-            QuickRow::ColourCorrection => "Color Correction",
+            QuickRow::GbShader => "GB/C Shader",
+            QuickRow::GbaColourCorrection => "GBA Color Correction",
+            QuickRow::GbColourCorrection => "GB/C Color Correction",
             QuickRow::Game => "Gameplay",
             QuickRow::EjectSave => "Auto Save on Eject",
             QuickRow::Turbo => "Turbo Buttons",
@@ -188,10 +193,12 @@ pub enum QuickValue {
     Frames1,
     Dark,
     Light,
+    Show,
+    Hide,
 }
 
 impl QuickValue {
-    pub const ALL: [QuickValue; 13] = [
+    pub const ALL: [QuickValue; 15] = [
         QuickValue::Speed2,
         QuickValue::Speed3,
         QuickValue::Speed4,
@@ -205,6 +212,8 @@ impl QuickValue {
         QuickValue::Frames1,
         QuickValue::Dark,
         QuickValue::Light,
+        QuickValue::Show,
+        QuickValue::Hide,
     ];
 
     pub fn index(self) -> usize {
@@ -226,6 +235,8 @@ impl QuickValue {
             QuickValue::Frames1 => "1 Frame",
             QuickValue::Dark => "Dark",
             QuickValue::Light => "Light",
+            QuickValue::Show => "Show",
+            QuickValue::Hide => "Hide",
         }
     }
 
@@ -257,9 +268,16 @@ impl QuickValue {
 }
 
 pub const QUICK_PITCH: f32 = 52.0;
-pub const QUICK_TOP: f32 = 56.0;
 pub const QUICK_EDGE: f32 = 32.0;
-const BAR_INSET: f32 = 4.0;
+pub const QUICK_LABEL_X: f32 = 64.0;
+const POINTER_GAP: f32 = 14.0;
+const POINTER_SCALE: usize = 4;
+const POINTER: [&str; 11] = [
+    "X.......", "XX......", "XoX.....", "XooX....", "XoooX...", "XooooX..", "XoooX...", "XooX....",
+    "XoX.....", "XX......", "X.......",
+];
+const POINTER_BLEED: u32 = 4;
+const GROUND_SCRIM: f32 = 0.65;
 const TYPE_DROP: f32 = 4.0;
 const CARET_GAP: f32 = 14.0;
 const CARET_PX: f32 = 24.0;
@@ -267,8 +285,51 @@ const LEGEND_Y: f32 = 427.0;
 pub const QUICK_SPLIT: f32 = LEGEND_Y - 2.0;
 const DIM_INK: [u8; 3] = [0x9a, 0x9a, 0xa4];
 
-pub fn quick_label_face(row: QuickRow) -> UndoFace {
-    quick_text_face(row.label(), MENU_INK)
+pub fn quick_label_face(row: QuickRow, lit: bool) -> UndoFace {
+    quick_text_face(row.label(), if lit { MENU_INK } else { DIM_INK })
+}
+
+fn cap_centre(label: &fontdue::Font, h: u32) -> f32 {
+    match label.horizontal_line_metrics(MENU_PX) {
+        Some(v) => {
+            (h as f32 - v.new_line_size) / 2.0 + v.ascent
+                - label.metrics('H', MENU_PX).height as f32 / 2.0
+        }
+        None => h as f32 / 2.0,
+    }
+}
+
+pub fn quick_pointer_face() -> UndoFace {
+    let s = POINTER_SCALE;
+    let w = POINTER[0].len() * s;
+    let h = (MENU_H + 2 * POINTER_BLEED) as usize;
+    let centre = match text::label_font() {
+        Some(label) => cap_centre(label, MENU_H),
+        None => MENU_H as f32 / 2.0,
+    } + POINTER_BLEED as f32;
+    let tip = POINTER.len() / 2 * s + s / 2;
+    let top = (centre - tip as f32).round() as usize;
+    let mut rgba = vec![0u8; w * h * 4];
+    for (y, row) in POINTER.iter().enumerate() {
+        for (x, _) in row.chars().enumerate().filter(|(_, ch)| *ch != '.') {
+            for py in top + y * s..top + (y + 1) * s {
+                for px in x * s..(x + 1) * s {
+                    let at = (py * w + px) * 4;
+                    rgba[at..at + 4].copy_from_slice(&[
+                        MENU_INK[0],
+                        MENU_INK[1],
+                        MENU_INK[2],
+                        0xff,
+                    ]);
+                }
+            }
+        }
+    }
+    UndoFace {
+        rgba,
+        w: w as u32,
+        h: h as u32,
+    }
 }
 
 pub fn quick_value_face(text: &str, lit: bool) -> UndoFace {
@@ -306,13 +367,7 @@ pub fn quick_caret_face(right: bool) -> UndoFace {
     };
     let (m, cov) = symbols.rasterize(glyph, CARET_PX);
     let (w, h) = (m.width as u32, MENU_H);
-    let centre = match label.horizontal_line_metrics(MENU_PX) {
-        Some(v) => {
-            (h as f32 - v.new_line_size) / 2.0 + v.ascent
-                - label.metrics('H', MENU_PX).height as f32 / 2.0
-        }
-        None => h as f32 / 2.0,
-    };
+    let centre = cap_centre(label, h);
     let top = (centre - m.height as f32 / 2.0).round() as i32;
     let mut rgba = vec![0u8; (w * h * 4) as usize];
     for gy in 0..m.height {
@@ -338,7 +393,8 @@ pub fn quick_legend_faces() -> [UndoFace; 3] {
 }
 
 pub struct QuickMenuFaces {
-    pub labels: Vec<(TexId, u32, u32)>,
+    pub labels: Vec<[(TexId, u32, u32); 2]>,
+    pub pointer: (TexId, u32, u32),
     pub values: Vec<[(TexId, u32, u32); 2]>,
     pub carets: [(TexId, u32, u32); 2],
     pub legend: [(TexId, u32); 3],
@@ -350,33 +406,36 @@ pub struct QuickMenu<'a> {
     pub clock: Option<[(TexId, u32, u32); 2]>,
     pub wallpaper: Option<[(TexId, u32, u32); 2]>,
     pub faces: Option<&'a QuickMenuFaces>,
+    pub ground: Option<TexId>,
 }
 
 impl QuickMenu<'_> {
     pub fn draw(&self, out: &mut Vec<Draw>) {
-        out.push(Draw::Rect {
-            x: 0.0,
-            y: 0.0,
-            w: OUT_W as f32,
-            h: OUT_H as f32,
-            colour: opening(),
-        });
-        out.push(Draw::Rect {
-            x: 0.0,
-            y: row_top(self.row) + BAR_INSET,
-            w: OUT_W as f32,
-            h: QUICK_PITCH - 2.0 * BAR_INSET,
-            colour: edge(),
-        });
+        draw_menu_ground(self.ground, out);
         let Some(faces) = self.faces else {
             return;
         };
         let (right, pad) = (OUT_W as f32 - QUICK_EDGE, MENU_PAD as f32);
+        let main_w = QuickRow::MAIN
+            .iter()
+            .filter_map(|r| faces.labels.get(r.index()))
+            .map(|l| l[1].1)
+            .max()
+            .unwrap_or(0);
         for &row in self.row.page() {
-            let y = row_top(row) + TYPE_DROP;
+            let y = quick_row_top(row) + TYPE_DROP;
             let lit = row == self.row;
-            if let Some(&(tex, w, h)) = faces.labels.get(row.index()) {
-                push(out, tex, QUICK_EDGE - pad, y, w, h);
+            if let Some(&(tex, w, h)) = faces.labels.get(row.index()).map(|l| &l[lit as usize]) {
+                let x = match row.page() == QuickRow::MAIN {
+                    true => (OUT_W as f32 - main_w as f32) / 2.0,
+                    false => QUICK_LABEL_X - pad,
+                };
+                push(out, tex, x, y, w, h);
+                if lit {
+                    let (tex, pw, ph) = faces.pointer;
+                    let px = x + pad - POINTER_GAP - pw as f32;
+                    push(out, tex, px, y - POINTER_BLEED as f32, pw, ph);
+                }
             }
             let value = match row {
                 QuickRow::DateTime => self.clock.map(|c| c[lit as usize]),
@@ -407,8 +466,39 @@ impl QuickMenu<'_> {
     }
 }
 
-fn row_top(row: QuickRow) -> f32 {
-    QUICK_TOP + QUICK_PITCH * row.position() as f32
+pub fn draw_menu_ground(ground: Option<TexId>, out: &mut Vec<Draw>) {
+    let (w, h) = (OUT_W as f32, OUT_H as f32);
+    match ground {
+        Some(tex) => {
+            out.push(Draw::Tex {
+                x: 0.0,
+                y: 0.0,
+                w,
+                h,
+                tex,
+                alpha: 1.0,
+            });
+            out.push(Draw::Rect {
+                x: 0.0,
+                y: 0.0,
+                w,
+                h,
+                colour: [0.0, 0.0, 0.0, GROUND_SCRIM],
+            });
+        }
+        None => out.push(Draw::Rect {
+            x: 0.0,
+            y: 0.0,
+            w,
+            h,
+            colour: opening(),
+        }),
+    }
+}
+
+pub fn quick_row_top(row: QuickRow) -> f32 {
+    let top = (LEGEND_Y - QUICK_PITCH * row.page().len() as f32) / 2.0;
+    top + QUICK_PITCH * row.position() as f32
 }
 
 fn push(out: &mut Vec<Draw>, tex: TexId, x: f32, y: f32, w: u32, h: u32) {

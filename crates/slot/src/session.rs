@@ -461,7 +461,7 @@ impl Session {
             &self.root,
             core,
             serial,
-            self.app.colour_correction(),
+            self.app.colour_correction_for(platform),
             palette,
             player,
         );

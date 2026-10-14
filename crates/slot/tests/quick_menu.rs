@@ -8,8 +8,8 @@ use slot::app::{App, Phase};
 use slot_input::{Action, Btn};
 use slot_store::{read_slot_state, write_slot_state, Appearance, Shader, SlotState, WallpaperPick};
 use slot_ui::{
-    edge, Draw, Icon, QuickMenuFaces, QuickRow, QuickValue, TexId, MENU_PAD, OUT_W, QUICK_EDGE,
-    QUICK_PITCH, QUICK_TOP,
+    Draw, Icon, QuickMenuFaces, QuickRow, QuickValue, TexId, MENU_PAD, OUT_W, QUICK_EDGE,
+    QUICK_LABEL_X,
 };
 use tempfile::TempDir;
 
@@ -224,11 +224,11 @@ fn up_and_down_move_the_bar_and_wrap_at_the_ends() {
         "up from the top did not wrap to the bottom"
     );
     for want in [
+        QuickRow::General,
         QuickRow::Screen,
         QuickRow::Game,
-        QuickRow::General,
         QuickRow::About,
-        QuickRow::Screen,
+        QuickRow::General,
     ] {
         press(&mut a, Btn::Down);
         assert_eq!(a.quick_menu(), Some(want));
@@ -306,34 +306,33 @@ fn rumble_and_fast_forward_sound_flip_on_either_arrow_and_save() {
 }
 
 #[test]
-fn colour_correction_flips_on_either_arrow_and_saves() {
-    let (d, mut a, _) = on_carousel();
-    open_at(&mut a, QuickRow::ColourCorrection);
-    assert!(
-        !a.colour_correction(),
-        "the row did not open on the default, which is off"
-    );
-    assert_eq!(
-        a.quick_value(QuickRow::ColourCorrection),
-        Some(QuickValue::Off)
-    );
-    for (btn, want) in [
-        (Btn::Right, true),
-        (Btn::Left, false),
-        (Btn::Left, true),
-        (Btn::Right, false),
-    ] {
-        press(&mut a, btn);
-        assert_eq!(a.colour_correction(), want, "{btn:?}");
+fn each_systems_colour_correction_flips_on_either_arrow_and_saves_alone() {
+    let saved = |d: &TempDir| {
+        let s = read_slot_state(d.path());
+        (s.colour_correction_gba, s.colour_correction_gb)
+    };
+    for row in [QuickRow::GbaColourCorrection, QuickRow::GbColourCorrection] {
+        let (d, mut a, _) = on_carousel();
+        open_at(&mut a, row);
         assert_eq!(
-            read_slot_state(d.path()).colour_correction,
-            want,
-            "{btn:?} never reached the card"
+            a.quick_value(row),
+            Some(QuickValue::Off),
+            "{row:?} did not open on the default, which is off"
         );
-        assert_eq!(
-            a.quick_value(QuickRow::ColourCorrection),
-            Some(QuickValue::flag(want))
-        );
+        for (btn, want) in [
+            (Btn::Right, true),
+            (Btn::Left, false),
+            (Btn::Left, true),
+            (Btn::Right, false),
+        ] {
+            press(&mut a, btn);
+            let both = match row {
+                QuickRow::GbaColourCorrection => (want, false),
+                _ => (false, want),
+            };
+            assert_eq!(saved(&d), both, "{row:?} {btn:?}");
+            assert_eq!(a.quick_value(row), Some(QuickValue::flag(want)));
+        }
     }
 }
 
@@ -369,8 +368,9 @@ fn screen_opens_a_page_of_its_own_and_b_comes_back_to_it() {
     press(&mut a, Btn::A);
     assert_eq!(a.quick_menu(), Some(QuickRow::GbaShader));
     for want in [
+        QuickRow::GbaColourCorrection,
         QuickRow::GbShader,
-        QuickRow::ColourCorrection,
+        QuickRow::GbColourCorrection,
         QuickRow::GbPalettes,
         QuickRow::GbaShader,
     ] {
@@ -413,7 +413,9 @@ fn each_platform_keeps_its_own_shader_wraps_and_starts_on_grid_and_simpletex() {
         );
     }
     assert_eq!(read_slot_state(d.path()).shader_gb, Shader::Simpletex);
-    press(&mut a, Btn::Down);
+    for _ in QuickRow::GbaShader.position()..QuickRow::GbShader.position() {
+        press(&mut a, Btn::Down);
+    }
     press(&mut a, Btn::Left);
     assert_eq!(read_slot_state(d.path()).shader_gb, Shader::Grid);
     assert_eq!(read_slot_state(d.path()).shader_gba, Shader::Off);
@@ -422,10 +424,11 @@ fn each_platform_keeps_its_own_shader_wraps_and_starts_on_grid_and_simpletex() {
 #[test]
 fn colour_correction_leaves_the_settings_around_it_alone() {
     let (d, mut a, _) = on_carousel();
-    open_at(&mut a, QuickRow::ColourCorrection);
+    open_at(&mut a, QuickRow::GbaColourCorrection);
     press(&mut a, Btn::Right);
     let s = read_slot_state(d.path());
-    assert!(s.colour_correction, "the row never took");
+    assert!(s.colour_correction_gba, "the row never took");
+    assert!(!s.colour_correction_gb, "the Game Boy picture changed too");
     assert_eq!(
         (s.ff_speed, s.ff_sound, s.rumble),
         (
@@ -580,8 +583,9 @@ fn fake_faces(a: &mut App) {
     let id = TexId::from_raw;
     a.set_quick_menu_faces(QuickMenuFaces {
         labels: (0..QuickRow::ALL.len())
-            .map(|i| (id(100 + i), 200, 40))
+            .map(|i| [(id(100 + i), 200, 40), (id(130 + i), 200, 40)])
             .collect(),
+        pointer: (id(700), 32, 48),
         values: (0..QuickValue::ALL.len())
             .map(|i| [(id(200 + i), 60, 40), (id(210 + i), 60, 40)])
             .collect(),
@@ -589,6 +593,14 @@ fn fake_faces(a: &mut App) {
         legend: [(id(400), 70), (id(401), 110), (id(402), 80)],
     });
     a.set_quick_clock_faces((id(500), 150, 40), (id(501), 150, 40));
+}
+
+fn label(row: QuickRow, lit: bool) -> usize {
+    if lit {
+        130 + row.index()
+    } else {
+        100 + row.index()
+    }
 }
 
 fn value(v: QuickValue, lit: bool) -> usize {
@@ -656,7 +668,9 @@ fn the_arrows_stand_only_around_the_selected_rows_value() {
         "rumble's ON is not grey"
     );
     press(&mut a, Btn::B);
-    press(&mut a, Btn::Down);
+    for _ in QuickRow::General.position()..QuickRow::Game.position() {
+        press(&mut a, Btn::Up);
+    }
     press(&mut a, Btn::A);
     let out = frame(&a);
     assert!(drawn(&out, 500), "the date and time is not grey");
@@ -673,38 +687,47 @@ fn the_arrows_stand_only_around_the_selected_rows_value() {
 }
 
 #[test]
-fn the_bar_runs_edge_to_edge_behind_the_selected_row() {
+fn the_pointer_stands_left_of_the_selected_row_and_only_it_is_lit() {
     let (_d, mut a, _) = on_carousel();
     fake_faces(&mut a);
     a.apply(Action::QuickMenu);
     for row in QuickRow::MAIN {
-        let bars: Vec<_> = frame(&a)
-            .into_iter()
-            .filter_map(|d| match d {
-                Draw::Rect { x, y, w, h, colour } if colour == edge() => Some([x, y, w, h]),
-                _ => None,
-            })
+        let out = frame(&a);
+        let pointers: Vec<_> = out
+            .iter()
+            .filter(|d| matches!(d, Draw::Tex { tex, .. } if *tex == TexId::from_raw(700)))
             .collect();
-        let top = QUICK_TOP + QUICK_PITCH * row.position() as f32;
-        assert_eq!(
-            bars,
-            vec![[0.0, top + 4.0, OUT_W as f32, QUICK_PITCH - 8.0]],
-            "{row:?}"
+        assert_eq!(pointers.len(), 1, "{row:?}: {} pointers", pointers.len());
+        let [px, py, pw, ph] = placed(&out, 700).expect("the pointer");
+        let [lx, ly, _, lh] = placed(&out, label(row, true)).expect("the lit label");
+        assert!(
+            px + pw <= lx + MENU_PAD as f32,
+            "{row:?}: the pointer runs into its label"
         );
+        assert_eq!(
+            py + ph / 2.0,
+            ly + lh / 2.0,
+            "{row:?}: the pointer is off the row"
+        );
+        for other in QuickRow::MAIN.into_iter().filter(|r| *r != row) {
+            assert!(drawn(&out, label(other, false)), "{other:?} is not grey");
+            assert!(!drawn(&out, label(other, true)), "{other:?} is lit");
+        }
         press(&mut a, Btn::Down);
     }
 }
 
 #[test]
-fn labels_start_and_values_end_thirty_two_pixels_in() {
+fn labels_leave_room_for_the_pointer_and_values_end_thirty_two_pixels_in() {
     let (_d, mut a, _) = on_carousel();
     fake_faces(&mut a);
     open_at(&mut a, QuickRow::FastForward);
     let out = frame(&a);
     let right = OUT_W as f32 - QUICK_EDGE;
     for row in QuickRow::GAME {
-        let [x, ..] = placed(&out, 100 + row.index()).expect("a label was not drawn");
-        assert_eq!(x + MENU_PAD as f32, QUICK_EDGE, "{row:?}'s label");
+        let lit = row == QuickRow::FastForward;
+        let [x, ..] = placed(&out, label(row, lit)).expect("a label was not drawn");
+        assert_eq!(x + MENU_PAD as f32, QUICK_LABEL_X, "{row:?}'s label");
     }
     let [x, _, w, _] = placed(&out, value(QuickValue::On, false)).expect("rumble's value");
     assert_eq!(x + w - MENU_PAD as f32, right, "an unselected value");
@@ -755,4 +778,85 @@ fn gb_palettes_flips_on_either_arrow_and_saves() {
             Some(QuickValue::flag(want))
         );
     }
+}
+
+#[test]
+fn no_row_in_hand_runs_its_arrows_into_its_label() {
+    let (_d, mut a, _) = on_carousel();
+    let id = TexId::from_raw;
+    a.set_quick_menu_faces(QuickMenuFaces {
+        labels: QuickRow::ALL
+            .iter()
+            .enumerate()
+            .map(|(i, r)| {
+                let w = slot_ui::quick_label_face(*r, true).w;
+                [(id(100 + i), w, 40), (id(130 + i), w, 40)]
+            })
+            .collect(),
+        pointer: (id(700), 32, 48),
+        values: QuickValue::ALL
+            .iter()
+            .enumerate()
+            .map(|(i, v)| {
+                let w = slot_ui::quick_value_face(v.text(), true).w;
+                [(id(200 + i), w, 40), (id(230 + i), w, 40)]
+            })
+            .collect(),
+        carets: [false, true].map(|right| {
+            let f = slot_ui::quick_caret_face(right);
+            (id(300 + right as usize), f.w, f.h)
+        }),
+        legend: [(id(400), 70), (id(401), 110), (id(402), 80)],
+    });
+    for page in [
+        &QuickRow::SCREEN[..],
+        &QuickRow::GAME[..],
+        &QuickRow::GENERAL[..],
+    ] {
+        for &row in page {
+            if row.opens() {
+                continue;
+            }
+            open_at(&mut a, row);
+            let out = frame(&a);
+            let [lx, _, lw, _] = placed(&out, 130 + row.index()).expect("the lit label");
+            let label_ends = lx + lw - MENU_PAD as f32;
+            if let Some([cx, ..]) = placed(&out, 300) {
+                assert!(
+                    cx - label_ends >= 16.0,
+                    "{row:?} in hand puts its arrow {} px from its label",
+                    cx - label_ends
+                );
+            }
+            while a.quick_menu().is_some() {
+                press(&mut a, Btn::B);
+            }
+        }
+    }
+}
+
+#[test]
+fn the_about_label_sits_on_the_same_tinted_ground_as_the_menu() {
+    let (_d, mut a, _) = on_carousel();
+    fake_faces(&mut a);
+    a.set_ground(TexId::from_raw(800));
+    a.set_blur(TexId::from_raw(801));
+    open_at(&mut a, QuickRow::About);
+    let menu = frame(&a);
+    press(&mut a, Btn::A);
+    assert!(matches!(a.phase(), Phase::About), "{:?}", a.phase());
+    let about = frame(&a);
+    assert!(
+        matches!(menu[0], Draw::Tex { tex, .. } if tex == TexId::from_raw(801)),
+        "the menu is not on the blurred wallpaper"
+    );
+    assert!(
+        matches!(menu[1], Draw::Rect { colour, .. } if colour[..3] == [0.0; 3] && colour[3] > 0.5),
+        "the menu's wallpaper is not tinted"
+    );
+    assert_eq!(
+        about[..2],
+        menu[..2],
+        "the About label is not on the menu's tinted ground"
+    );
 }

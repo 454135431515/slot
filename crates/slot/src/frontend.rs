@@ -10,11 +10,11 @@ use slot_ui::{
     arrows_hint_coloured, arrows_hint_face, badge_face, bezel_face, cart_shadow, chip_face,
     chip_shadow_face, date_time_text, footer_ink, gb_cart_shadow, hhmm, hint_coloured, hint_face,
     icon_face, menu_face, photo_face, quick_caret_face, quick_label_face, quick_legend_faces,
-    quick_value_face, rebuild_count_face, rebuild_title_face, set_clock_hint_face, slot_back,
-    slot_back_light, slot_front, slot_front_light, socket_face, sticker_face, title_face,
-    toast_face, wallpaper_face, word_ink, CartFace, GbShell, Icon, LinkBadge, PowerChoice,
-    QuickMenuFaces, QuickRow, QuickValue, RebuildScreen, StickerFields, Toast, UndoFace, ALERT_PX,
-    BOLT_PX, HUD_ICON_PX, HUD_INK, LEGEND,
+    quick_pointer_face, quick_value_face, rebuild_count_face, rebuild_title_face,
+    set_clock_hint_face, slot_back, slot_back_light, slot_front, slot_front_light, socket_face,
+    sticker_face, title_face, toast_face, wallpaper_face, word_ink, CartFace, GbShell, Icon,
+    LinkBadge, PowerChoice, QuickMenuFaces, QuickRow, QuickValue, RebuildScreen, StickerFields,
+    Toast, UndoFace, ALERT_PX, BOLT_PX, HUD_ICON_PX, HUD_INK, LEGEND,
 };
 
 use crate::app::{App, LinkRow, Phase};
@@ -337,7 +337,12 @@ impl Frontend {
         let mut up = |f: UndoFace| (compositor.create_texture(f.w, f.h, &f.rgba), f.w, f.h);
         let lines = faces.shutdown.into_iter().map(&mut up).collect();
         let menu = faces.power_menu.into_iter().map(&mut up).collect();
-        let labels = faces.quick_labels.into_iter().map(&mut up).collect();
+        let labels = faces
+            .quick_labels
+            .into_iter()
+            .map(|l| l.map(&mut up))
+            .collect();
+        let pointer = up(faces.quick_pointer);
         let values = faces
             .quick_values
             .into_iter()
@@ -381,6 +386,7 @@ impl Frontend {
         app.set_power_menu_faces(menu);
         app.set_quick_menu_faces(QuickMenuFaces {
             labels,
+            pointer,
             values,
             carets,
             legend,
@@ -700,7 +706,8 @@ struct UiFaces {
     link_badges: Vec<CartFace>,
     shutdown: Vec<UndoFace>,
     power_menu: Vec<UndoFace>,
-    quick_labels: Vec<UndoFace>,
+    quick_labels: Vec<[UndoFace; 2]>,
+    quick_pointer: UndoFace,
     quick_values: Vec<[UndoFace; 2]>,
     quick_carets: [UndoFace; 2],
     quick_legend: [UndoFace; 3],
@@ -744,7 +751,11 @@ impl UiFaces {
                 .iter()
                 .map(|c| menu_face(c.text()))
                 .collect(),
-            quick_labels: QuickRow::ALL.iter().map(|r| quick_label_face(*r)).collect(),
+            quick_labels: QuickRow::ALL
+                .iter()
+                .map(|r| [false, true].map(|lit| quick_label_face(*r, lit)))
+                .collect(),
+            quick_pointer: quick_pointer_face(),
             quick_values: QuickValue::ALL
                 .iter()
                 .map(|v| [false, true].map(|lit| quick_value_face(v.text(), lit)))
