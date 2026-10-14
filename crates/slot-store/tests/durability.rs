@@ -203,8 +203,10 @@ fn a_card_from_before_the_settings_keeps_all_its_values() {
             ff_sound: false,
             colour_correction_gba: false,
             colour_correction_gb: false,
+            colour_correction_gbc: false,
             shader_gba: Shader::Grid,
             shader_gb: Shader::Simpletex,
+            shader_gbc: Shader::Simpletex,
             eject_save: true,
             turbo: true,
             rewind: true,
@@ -239,6 +241,8 @@ fn the_quick_menu_settings_round_trip_as_their_own_lines() {
         gb_palettes: true,
         gb_palette: GbPalette::parse("GBC Dark Green →A").unwrap(),
         wallpaper_tint: WallpaperTint::Medium,
+        colour_correction_gbc: true,
+        shader_gbc: Shader::Grid,
         ..SlotState::default()
     };
     write_slot_state(d.path(), &s).unwrap();
@@ -260,6 +264,8 @@ fn the_quick_menu_settings_round_trip_as_their_own_lines() {
         "gb_palette=GBC Dark Green →A",
         "appearance=dark",
         "wallpaper_tint=medium",
+        "colour_correction_gbc=1",
+        "shader_gbc=grid",
     ] {
         assert!(text.lines().any(|l| l == line), "no {line} in {text:?}");
     }
@@ -498,4 +504,38 @@ fn a_wallpaper_tint_it_does_not_know_reads_as_off() {
         assert_eq!(s.wallpaper, WallpaperPick::File("a.png".into()), "{line}");
         assert_eq!(s.wallpaper_tint, want, "{line}");
     }
+}
+
+#[test]
+fn a_card_from_before_the_gbc_split_starts_gbc_from_the_gb_c_settings() {
+    let d = tmp_root();
+    let known = "cart=Emerald\nbrightness=3\nblue_light=1\nvolume=40\nmuted=0\nclock_set=1\nutc_offset_min=0\n";
+    std::fs::write(
+        d.path().join("Config/slot.state"),
+        format!("{known}colour_correction_gb=1\nshader_gb=grid\n"),
+    )
+    .unwrap();
+    let s = read_slot_state(d.path());
+    assert_eq!((s.colour_correction_gb, s.shader_gb), (true, Shader::Grid));
+    assert_eq!(
+        (s.colour_correction_gbc, s.shader_gbc),
+        (true, Shader::Grid)
+    );
+    std::fs::write(
+        d.path().join("Config/slot.state"),
+        format!("{known}colour_correction=1\n"),
+    )
+    .unwrap();
+    assert!(read_slot_state(d.path()).colour_correction_gbc);
+    std::fs::write(
+        d.path().join("Config/slot.state"),
+        format!("{known}colour_correction_gb=1\nshader_gb=grid\ncolour_correction_gbc=0\nshader_gbc=off\n"),
+    )
+    .unwrap();
+    let s = read_slot_state(d.path());
+    assert_eq!(
+        (s.colour_correction_gbc, s.shader_gbc),
+        (false, Shader::Off),
+        "the GB settings overrode GBC's own"
+    );
 }

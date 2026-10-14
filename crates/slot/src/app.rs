@@ -679,9 +679,13 @@ impl App {
                 Some(QuickValue::flag(self.state.colour_correction_gba))
             }
             QuickRow::GbColourCorrection => Some(QuickValue::flag(self.state.colour_correction_gb)),
+            QuickRow::GbcColourCorrection => {
+                Some(QuickValue::flag(self.state.colour_correction_gbc))
+            }
             QuickRow::GbPalettes => Some(QuickValue::flag(self.state.gb_palettes)),
             QuickRow::GbaShader => Some(shader_value(self.state.shader_gba)),
             QuickRow::GbShader => Some(shader_value(self.state.shader_gb)),
+            QuickRow::GbcShader => Some(shader_value(self.state.shader_gbc)),
             QuickRow::Rumble => Some(QuickValue::flag(self.state.rumble)),
             QuickRow::EjectSave => Some(QuickValue::flag(self.state.eject_save)),
             QuickRow::Turbo => Some(QuickValue::flag(self.state.turbo)),
@@ -1277,9 +1281,10 @@ impl App {
     }
 
     pub fn screen_shader(&self) -> Shader {
-        match self.platform {
+        match self.playing_platform() {
             Platform::Gba => self.state.shader_gba,
-            Platform::Gb | Platform::Gbc => self.state.shader_gb,
+            Platform::Gb => self.state.shader_gb,
+            Platform::Gbc => self.state.shader_gbc,
         }
     }
 
@@ -1294,7 +1299,8 @@ impl App {
     pub fn colour_correction_for(&self, platform: Platform) -> bool {
         match platform {
             Platform::Gba => self.state.colour_correction_gba,
-            Platform::Gb | Platform::Gbc => self.state.colour_correction_gb,
+            Platform::Gb => self.state.colour_correction_gb,
+            Platform::Gbc => self.state.colour_correction_gbc,
         }
     }
 
@@ -1601,8 +1607,10 @@ impl App {
             | QuickRow::FastForwardSound
             | QuickRow::GbaColourCorrection
             | QuickRow::GbColourCorrection
+            | QuickRow::GbcColourCorrection
             | QuickRow::GbaShader
             | QuickRow::GbShader
+            | QuickRow::GbcShader
             | QuickRow::GbPalettes
             | QuickRow::RunAhead
             | QuickRow::Rumble
@@ -1643,6 +1651,10 @@ impl App {
                 s.colour_correction_gb = !s.colour_correction_gb;
                 self.colour_pending = Some(self.colour_correction());
             }
+            QuickRow::GbcColourCorrection => {
+                s.colour_correction_gbc = !s.colour_correction_gbc;
+                self.colour_pending = Some(self.colour_correction());
+            }
             QuickRow::GbaShader => {
                 let to = s.shader_gba.step(&Shader::GBA, right);
                 if to == s.shader_gba {
@@ -1656,6 +1668,13 @@ impl App {
                     return;
                 }
                 s.shader_gb = to;
+            }
+            QuickRow::GbcShader => {
+                let to = s.shader_gbc.step(&Shader::GB, right);
+                if to == s.shader_gbc {
+                    return;
+                }
+                s.shader_gbc = to;
             }
             QuickRow::Rumble => s.rumble = !s.rumble,
             QuickRow::EjectSave => s.eject_save = !s.eject_save,
@@ -1688,9 +1707,10 @@ impl App {
         if !matches!(self.phase, Phase::Inserting { .. } | Phase::Playing { .. }) {
             return;
         }
-        let (shader, choices) = match self.platform {
+        let (shader, choices) = match self.playing_platform() {
             Platform::Gba => (&mut self.state.shader_gba, &Shader::GBA[..]),
-            Platform::Gb | Platform::Gbc => (&mut self.state.shader_gb, &Shader::GB[..]),
+            Platform::Gb => (&mut self.state.shader_gb, &Shader::GB[..]),
+            Platform::Gbc => (&mut self.state.shader_gbc, &Shader::GB[..]),
         };
         *shader = shader.step(choices, right);
         let said = match *shader {
@@ -1729,7 +1749,8 @@ impl App {
         if action == Action::ColourCorrectionToggle {
             let row = match self.playing_platform() {
                 Platform::Gba => QuickRow::GbaColourCorrection,
-                Platform::Gb | Platform::Gbc => QuickRow::GbColourCorrection,
+                Platform::Gb => QuickRow::GbColourCorrection,
+                Platform::Gbc => QuickRow::GbcColourCorrection,
             };
             self.change_setting(row, true);
             let said = match self.colour_correction() {

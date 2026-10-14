@@ -111,8 +111,10 @@ fn the_rows_run_in_the_order_the_user_chose() {
         [
             "GBA Shader",
             "GBA Color Correction",
-            "GB/C Shader",
-            "GB/C Color Correction",
+            "GB Shader",
+            "GB Color Correction",
+            "GBC Shader",
+            "GBC Color Correction",
             "GB Palettes"
         ]
     );

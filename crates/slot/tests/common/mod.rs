@@ -55,6 +55,19 @@ pub fn tmp_root_with_gb_carts(stems: &[&str]) -> TempDir {
     d
 }
 
+pub fn tmp_root_with_gbc_carts(stems: &[&str]) -> TempDir {
+    let d = tmp_root_with_gb_carts(&[]);
+    for stem in stems {
+        let title = stem.to_uppercase();
+        let mut rom = vec![0u8; 0x150];
+        rom[0x134..0x134 + title.len().min(11)]
+            .copy_from_slice(&title.as_bytes()[..title.len().min(11)]);
+        rom[0x143] = 0x80;
+        std::fs::write(cart_path(&d, CartPlatform::Gbc, stem), rom).expect("write rom");
+    }
+    d
+}
+
 pub fn write_gb_cart(d: &TempDir, stem: &str, title: &str) {
     assert!(
         title.len() <= 11,

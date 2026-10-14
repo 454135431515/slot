@@ -167,8 +167,10 @@ pub struct SlotState {
     pub ff_sound: bool,
     pub colour_correction_gba: bool,
     pub colour_correction_gb: bool,
+    pub colour_correction_gbc: bool,
     pub shader_gba: Shader,
     pub shader_gb: Shader,
+    pub shader_gbc: Shader,
     pub eject_save: bool,
     pub turbo: bool,
     pub rewind: bool,
@@ -261,8 +263,10 @@ impl Default for SlotState {
             ff_sound: false,
             colour_correction_gba: false,
             colour_correction_gb: false,
+            colour_correction_gbc: false,
             shader_gba: Shader::Grid,
             shader_gb: Shader::Simpletex,
+            shader_gbc: Shader::Simpletex,
             eject_save: true,
             turbo: true,
             rewind: true,
@@ -319,6 +323,11 @@ pub fn write_slot_state(root: &Path, s: &SlotState) -> std::io::Result<()> {
         s.appearance.name(),
         s.wallpaper.key()
     );
+    text.push_str(&format!(
+        "colour_correction_gbc={}\n",
+        s.colour_correction_gbc as u8
+    ));
+    text.push_str(&format!("shader_gbc={}\n", s.shader_gbc.name()));
     text.push_str(&format!("wallpaper_tint={}\n", s.wallpaper_tint.key()));
     text.push_str(&format!("show_recents={}\n", s.show_recents as u8));
     for r in &s.recents {
@@ -344,8 +353,10 @@ fn parse(text: &str) -> Option<SlotState> {
     let mut colour_correction = None;
     let mut colour_correction_gba = None;
     let mut colour_correction_gb = None;
+    let mut colour_correction_gbc = None;
     let mut shader_gba = None;
     let mut shader_gb = None;
+    let mut shader_gbc = None;
     let mut eject_save = None;
     let mut turbo = None;
     let mut rewind = None;
@@ -378,6 +389,7 @@ fn parse(text: &str) -> Option<SlotState> {
             "colour_correction" => colour_correction = flag(value),
             "colour_correction_gba" => colour_correction_gba = flag(value),
             "colour_correction_gb" => colour_correction_gb = flag(value),
+            "colour_correction_gbc" => colour_correction_gbc = flag(value),
             "shader_gba" => shader_gba = Shader::parse(value).filter(|s| Shader::GBA.contains(s)),
             "eject_save" => eject_save = flag(value),
             "turbo" => turbo = flag(value),
@@ -391,6 +403,7 @@ fn parse(text: &str) -> Option<SlotState> {
             "show_recents" => show_recents = flag(value),
             "recent" => recents.extend(recent_value(value)),
             "shader_gb" => shader_gb = Shader::parse(value).filter(|s| Shader::GB.contains(s)),
+            "shader_gbc" => shader_gbc = Shader::parse(value).filter(|s| Shader::GB.contains(s)),
             _ => {}
         }
     }
@@ -416,8 +429,13 @@ fn parse(text: &str) -> Option<SlotState> {
         colour_correction_gb: colour_correction_gb
             .or(colour_correction)
             .unwrap_or(fallback.colour_correction_gb),
+        colour_correction_gbc: colour_correction_gbc
+            .or(colour_correction_gb)
+            .or(colour_correction)
+            .unwrap_or(fallback.colour_correction_gbc),
         shader_gba: shader_gba.unwrap_or(fallback.shader_gba),
         shader_gb: shader_gb.unwrap_or(fallback.shader_gb),
+        shader_gbc: shader_gbc.or(shader_gb).unwrap_or(fallback.shader_gbc),
         eject_save: eject_save.unwrap_or(fallback.eject_save),
         turbo: turbo.unwrap_or(fallback.turbo),
         rewind: rewind.unwrap_or(fallback.rewind),

@@ -27,10 +27,12 @@ pub enum QuickRow {
     General,
     Recents,
     WallpaperTint,
+    GbcShader,
+    GbcColourCorrection,
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 21] = [
+    pub const ALL: [QuickRow; 23] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Screen,
@@ -52,6 +54,8 @@ impl QuickRow {
         QuickRow::General,
         QuickRow::Recents,
         QuickRow::WallpaperTint,
+        QuickRow::GbcShader,
+        QuickRow::GbcColourCorrection,
     ];
 
     pub const MAIN: [QuickRow; 4] = [
@@ -69,11 +73,13 @@ impl QuickRow {
         QuickRow::DateTime,
     ];
 
-    pub const SCREEN: [QuickRow; 5] = [
+    pub const SCREEN: [QuickRow; 7] = [
         QuickRow::GbaShader,
         QuickRow::GbaColourCorrection,
         QuickRow::GbShader,
         QuickRow::GbColourCorrection,
+        QuickRow::GbcShader,
+        QuickRow::GbcColourCorrection,
         QuickRow::GbPalettes,
     ];
 
@@ -95,8 +101,10 @@ impl QuickRow {
         match self {
             QuickRow::GbaShader
             | QuickRow::GbShader
+            | QuickRow::GbcShader
             | QuickRow::GbaColourCorrection
             | QuickRow::GbColourCorrection
+            | QuickRow::GbcColourCorrection
             | QuickRow::GbPalettes => &QuickRow::SCREEN,
             QuickRow::FastForward
             | QuickRow::FastForwardSound
@@ -156,9 +164,11 @@ impl QuickRow {
             QuickRow::DateTime => "Date & Time",
             QuickRow::About => "About",
             QuickRow::GbaShader => "GBA Shader",
-            QuickRow::GbShader => "GB/C Shader",
+            QuickRow::GbShader => "GB Shader",
+            QuickRow::GbcShader => "GBC Shader",
             QuickRow::GbaColourCorrection => "GBA Color Correction",
-            QuickRow::GbColourCorrection => "GB/C Color Correction",
+            QuickRow::GbColourCorrection => "GB Color Correction",
+            QuickRow::GbcColourCorrection => "GBC Color Correction",
             QuickRow::Game => "Gameplay",
             QuickRow::EjectSave => "Auto Save on Eject",
             QuickRow::Turbo => "Turbo Buttons",

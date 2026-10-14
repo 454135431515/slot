@@ -309,9 +309,17 @@ fn rumble_and_fast_forward_sound_flip_on_either_arrow_and_save() {
 fn each_systems_colour_correction_flips_on_either_arrow_and_saves_alone() {
     let saved = |d: &TempDir| {
         let s = read_slot_state(d.path());
-        (s.colour_correction_gba, s.colour_correction_gb)
+        (
+            s.colour_correction_gba,
+            s.colour_correction_gb,
+            s.colour_correction_gbc,
+        )
     };
-    for row in [QuickRow::GbaColourCorrection, QuickRow::GbColourCorrection] {
+    for row in [
+        QuickRow::GbaColourCorrection,
+        QuickRow::GbColourCorrection,
+        QuickRow::GbcColourCorrection,
+    ] {
         let (d, mut a, _) = on_carousel();
         open_at(&mut a, row);
         assert_eq!(
@@ -327,8 +335,9 @@ fn each_systems_colour_correction_flips_on_either_arrow_and_saves_alone() {
         ] {
             press(&mut a, btn);
             let both = match row {
-                QuickRow::GbaColourCorrection => (want, false),
-                _ => (false, want),
+                QuickRow::GbaColourCorrection => (want, false, false),
+                QuickRow::GbColourCorrection => (false, want, false),
+                _ => (false, false, want),
             };
             assert_eq!(saved(&d), both, "{row:?} {btn:?}");
             assert_eq!(a.quick_value(row), Some(QuickValue::flag(want)));
@@ -371,6 +380,8 @@ fn screen_opens_a_page_of_its_own_and_b_comes_back_to_it() {
         QuickRow::GbaColourCorrection,
         QuickRow::GbShader,
         QuickRow::GbColourCorrection,
+        QuickRow::GbcShader,
+        QuickRow::GbcColourCorrection,
         QuickRow::GbPalettes,
         QuickRow::GbaShader,
     ] {
@@ -419,6 +430,19 @@ fn each_platform_keeps_its_own_shader_wraps_and_starts_on_grid_and_simpletex() {
     press(&mut a, Btn::Left);
     assert_eq!(read_slot_state(d.path()).shader_gb, Shader::Grid);
     assert_eq!(read_slot_state(d.path()).shader_gba, Shader::Off);
+    assert_eq!(
+        a.quick_value(QuickRow::GbcShader),
+        Some(QuickValue::Simpletex)
+    );
+    for _ in QuickRow::GbShader.position(&[])..QuickRow::GbcShader.position(&[]) {
+        press(&mut a, Btn::Down);
+    }
+    press(&mut a, Btn::Right);
+    let s = read_slot_state(d.path());
+    assert_eq!(
+        (s.shader_gba, s.shader_gb, s.shader_gbc),
+        (Shader::Off, Shader::Grid, Shader::Off)
+    );
 }
 
 #[test]

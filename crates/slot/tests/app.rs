@@ -2135,6 +2135,33 @@ fn the_colour_shortcut_flips_only_the_system_that_is_playing() {
 }
 
 #[test]
+fn a_game_boy_color_game_keeps_its_own_colour_and_shader() {
+    use slot_store::Shader;
+    let d = common::tmp_root_with_gbc_carts(&["Crystal", "Oracle"]);
+    let (mut s, _motor) = common::session_with_platform(d.path());
+    s.app_mut().apply(slot_input::Action::Insert);
+    s.app_mut()
+        .apply(slot_input::Action::ColourCorrectionToggle);
+    s.app_mut().apply(slot_input::Action::ShaderNext);
+    let saved = slot_store::read_slot_state(d.path());
+    assert_eq!(
+        (
+            saved.colour_correction_gba,
+            saved.colour_correction_gb,
+            saved.colour_correction_gbc
+        ),
+        (false, false, true),
+        "a Game Boy Color game's colour shortcut did not land on GBC alone"
+    );
+    assert_eq!(
+        (saved.shader_gb, saved.shader_gbc),
+        (Shader::Simpletex, Shader::Off),
+        "a Game Boy Color game's shader shortcut did not land on GBC alone"
+    );
+    assert_eq!(s.app().screen_shader(), Shader::Off);
+}
+
+#[test]
 fn the_colour_shortcut_names_the_state_it_arrived_at() {
     let d = common::tmp_root_with_carts(&["Emerald", "Fusion"]);
     let (mut s, _motor) = common::session_with_platform(d.path());
