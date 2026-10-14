@@ -14,6 +14,7 @@ use super::trace;
 const DEV: &str = "/dev/input";
 const SYS: &str = "/sys/class/input";
 const PSY: &str = "/sys/class/power_supply";
+const BASEOS_RELEASE: &str = "/etc/baseos-release";
 
 const LID_POLL_MS: Millis = 150;
 
@@ -22,19 +23,43 @@ pub struct DeviceInput {
     hall: Option<PathBuf>,
     lid_shut: Option<bool>,
     next_lid_poll: Millis,
+    select_volume_brightness: bool,
 }
 
 impl DeviceInput {
     pub fn open(root: &Path) -> Self {
-        DeviceInput::open_in(Path::new(DEV), Path::new(SYS), root, trace::enabled())
+        DeviceInput::open_with_baseos_release(
+            Path::new(DEV),
+            Path::new(SYS),
+            Path::new(BASEOS_RELEASE),
+            root,
+            trace::enabled(),
+        )
     }
 
     pub fn open_in(dev: &Path, sys: &Path, root: &Path, trace: bool) -> Self {
-        let trace = trace.then(|| Trace::start(root, dev, sys)).flatten();
-        DeviceInput::open_traced(dev, sys, trace)
+        DeviceInput::open_with_baseos_release(dev, sys, Path::new(BASEOS_RELEASE), root, trace)
     }
 
-    fn open_traced(dev: &Path, sys: &Path, trace: Option<Arc<Trace>>) -> Self {
+    fn open_with_baseos_release(
+        dev: &Path,
+        sys: &Path,
+        release: &Path,
+        root: &Path,
+        trace: bool,
+    ) -> Self {
+        let trace = trace.then(|| Trace::start(root, dev, sys)).flatten();
+        let target = baseos_target(release);
+        let select_volume_brightness = target.as_deref() == Some("rg34xx");
+        DeviceInput::open_traced(dev, sys, select_volume_brightness, trace)
+    }
+
+    fn open_traced(
+        dev: &Path,
+        sys: &Path,
+        select_volume_brightness: bool,
+        trace: Option<Arc<Trace>>,
+    ) -> Self {
         let pending: Arc<Mutex<Vec<RawEvent>>> = Arc::new(Mutex::new(Vec::new()));
         for node in pick_devices(dev, sys) {
             eprintln!(
@@ -58,6 +83,7 @@ impl DeviceInput {
             hall: find_hall(Path::new(PSY)),
             lid_shut: None,
             next_lid_poll: 0,
+            select_volume_brightness,
         }
     }
 }
@@ -199,6 +225,10 @@ impl InputSource for DeviceInput {
         }
         out
     }
+
+    fn select_volume_brightness(&self) -> bool {
+        self.select_volume_brightness
+    }
 }
 
 fn find_hall(psy: &Path) -> Option<PathBuf> {
@@ -212,4 +242,40 @@ fn find_hall(psy: &Path) -> Option<PathBuf> {
         .into_iter()
         .map(|d| d.join("hallkey"))
         .find(|p| p.is_file())
+}
+
+fn baseos_target(release: &Path) -> Option<String> {
+    std::fs::read_to_string(release)
+        .ok()?
+        .lines()
+        .find_map(|line| {
+            line.strip_prefix("BASEOS_TARGET=")
+                .map(str::trim)
+                .filter(|target| !target.is_empty())
+                .map(ToOwned::to_owned)
+        })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_the_rg34xx_baseos_target_enables_the_volume_brightness_gesture() {
+        let d = tempfile::tempdir().unwrap();
+        let release = d.path().join("baseos-release");
+        for (target, want) in [
+            ("rg34xx", true),
+            ("rg34xxsp", false),
+            ("rg35xxsp", false),
+            ("rg35xxh", false),
+        ] {
+            std::fs::write(&release, format!("BASEOS_TARGET={target}\n")).unwrap();
+            assert_eq!(
+                baseos_target(&release).as_deref() == Some("rg34xx"),
+                want,
+                "{target}"
+            );
+        }
+    }
 }

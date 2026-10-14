@@ -65,6 +65,7 @@ enum Select {
 #[derive(Default)]
 pub struct Gestures {
     select: Select,
+    select_volume_brightness: bool,
     chord_held: u16,
     menu_down_at: Option<Millis>,
     menu_last_tap: Option<Millis>,
@@ -97,6 +98,10 @@ fn ramp_due(down: Option<Millis>, last: Option<Millis>, now: Millis) -> bool {
 impl Gestures {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn set_select_volume_brightness(&mut self, enabled: bool) {
+        self.select_volume_brightness = enabled;
     }
 
     pub fn ff_latched(&self) -> bool {
@@ -161,7 +166,9 @@ impl Gestures {
     }
 
     fn down(&mut self, b: Btn, now: Millis) -> Vec<Action> {
-        if let (true, Some((bit, action))) = (self.chording(now), chord(b)) {
+        if let (true, Some((bit, action))) =
+            (self.chording(now), chord(b, self.select_volume_brightness))
+        {
             self.mark_chorded();
             self.chord_held |= bit;
             return vec![action];
@@ -187,7 +194,7 @@ impl Gestures {
     }
 
     fn up(&mut self, b: Btn, now: Millis) -> Vec<Action> {
-        if let Some((bit, _)) = chord(b) {
+        if let Some((bit, _)) = chord(b, self.select_volume_brightness) {
             if self.chord_held & bit != 0 {
                 self.chord_held &= !bit;
                 return Vec::new();
@@ -406,7 +413,7 @@ impl Gestures {
     }
 }
 
-fn chord(b: Btn) -> Option<(u16, Action)> {
+fn chord(b: Btn, select_volume_brightness: bool) -> Option<(u16, Action)> {
     Some(match b {
         Btn::Up => (1, Action::BrightnessUp),
         Btn::Down => (2, Action::BrightnessDown),
@@ -419,6 +426,8 @@ fn chord(b: Btn) -> Option<(u16, Action)> {
         Btn::R2 => (256, Action::PaletteNext),
         Btn::A => (512, Action::ShaderNext),
         Btn::B => (1024, Action::ShaderPrev),
+        Btn::VolUp if select_volume_brightness => (2048, Action::BrightnessUp),
+        Btn::VolDown if select_volume_brightness => (4096, Action::BrightnessDown),
         Btn::VolUp => (2048, Action::MuteToggle),
         Btn::VolDown => (4096, Action::MuteToggle),
         _ => return None,

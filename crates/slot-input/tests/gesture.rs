@@ -534,3 +534,15 @@ fn select_and_either_volume_key_mutes_for_a_volume_wheel_with_no_chord() {
         );
     }
 }
+
+#[test]
+fn select_and_either_volume_key_changes_brightness_when_configured() {
+    for (vol, want) in [(VolUp, BrightnessUp), (VolDown, BrightnessDown)] {
+        let mut g = Gestures::new();
+        g.set_select_volume_brightness(true);
+        assert!(g.feed(Down(Select), 0).is_empty());
+        assert_eq!(g.feed(Down(vol), 100), vec![want], "{vol:?}");
+        assert!(g.feed(Up(vol), 150).is_empty(), "{vol:?}");
+        assert!(g.feed(Up(Select), 200).is_empty());
+    }
+}
