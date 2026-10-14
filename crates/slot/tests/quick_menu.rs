@@ -378,10 +378,10 @@ fn screen_opens_a_page_of_its_own_and_b_comes_back_to_it() {
     assert_eq!(a.quick_menu(), Some(QuickRow::GbaShader));
     for want in [
         QuickRow::GbaColourCorrection,
-        QuickRow::GbShader,
-        QuickRow::GbColourCorrection,
         QuickRow::GbcShader,
         QuickRow::GbcColourCorrection,
+        QuickRow::GbShader,
+        QuickRow::GbColourCorrection,
         QuickRow::GbPalettes,
         QuickRow::GbaShader,
     ] {
@@ -427,6 +427,7 @@ fn each_platform_keeps_its_own_shader_wraps_and_starts_on_grid_and_simpletex() {
     for _ in QuickRow::GbaShader.position(&[])..QuickRow::GbShader.position(&[]) {
         press(&mut a, Btn::Down);
     }
+    assert_eq!(a.quick_menu(), Some(QuickRow::GbShader));
     press(&mut a, Btn::Left);
     assert_eq!(read_slot_state(d.path()).shader_gb, Shader::Grid);
     assert_eq!(read_slot_state(d.path()).shader_gba, Shader::Off);
@@ -434,9 +435,10 @@ fn each_platform_keeps_its_own_shader_wraps_and_starts_on_grid_and_simpletex() {
         a.quick_value(QuickRow::GbcShader),
         Some(QuickValue::Simpletex)
     );
-    for _ in QuickRow::GbShader.position(&[])..QuickRow::GbcShader.position(&[]) {
-        press(&mut a, Btn::Down);
+    for _ in QuickRow::GbcShader.position(&[])..QuickRow::GbShader.position(&[]) {
+        press(&mut a, Btn::Up);
     }
+    assert_eq!(a.quick_menu(), Some(QuickRow::GbcShader));
     press(&mut a, Btn::Right);
     let s = read_slot_state(d.path());
     assert_eq!(

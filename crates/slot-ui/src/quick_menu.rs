@@ -94,10 +94,10 @@ impl QuickRow {
     pub const SCREEN: [QuickRow; 7] = [
         QuickRow::GbaShader,
         QuickRow::GbaColourCorrection,
-        QuickRow::GbShader,
-        QuickRow::GbColourCorrection,
         QuickRow::GbcShader,
         QuickRow::GbcColourCorrection,
+        QuickRow::GbShader,
+        QuickRow::GbColourCorrection,
         QuickRow::GbPalettes,
     ];
 
