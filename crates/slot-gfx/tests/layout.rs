@@ -1,6 +1,6 @@
 #![cfg(target_os = "macos")]
 
-use slot_gfx::{Compositor, Draw, HeadlessSurface, ScreenEffect, SRC_H, SRC_W};
+use slot_gfx::{Canvas, Compositor, Draw, HeadlessSurface, Layout, ScreenEffect, SRC_H, SRC_W};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 static GL: Mutex<()> = Mutex::new(());
@@ -65,4 +65,74 @@ fn a_framed_frame_on_a_4_by_3_panel_is_todays_frame() {
     let frame = framed_frame(&mut c);
     assert_eq!(frame.len(), 640 * 427 * 4);
     assert_eq!(fnv(&frame), FRAMED_HASH, "hash is {:#x}", fnv(&frame));
+}
+
+#[test]
+fn a_native_canvas_on_a_4_by_3_panel_is_the_panel_at_480_lines() {
+    assert_eq!(
+        Canvas::of(Layout::Native, (640, 480)),
+        Canvas { w: 640.0, h: 480.0 }
+    );
+    assert_eq!(
+        Canvas::of(Layout::Native, (1280, 960)),
+        Canvas { w: 640.0, h: 480.0 }
+    );
+    assert_eq!(Canvas::of(Layout::Framed, (640, 480)), Canvas::FRAMED);
+}
+
+#[test]
+fn every_layout_is_the_framed_canvas_on_a_panel_that_is_not_4_by_3() {
+    for panel in [(720, 480), (1440, 960), (0, 0)] {
+        assert_eq!(Canvas::of(Layout::Native, panel), Canvas::FRAMED);
+        assert_eq!(Canvas::of(Layout::Framed, panel), Canvas::FRAMED);
+    }
+}
+
+#[test]
+fn the_window_of_a_wider_texture_is_its_centre_and_a_fitting_one_is_whole() {
+    let native = Canvas { w: 640.0, h: 480.0 };
+    assert_eq!(
+        native.window(720.0),
+        [40.0 / 720.0, 0.0, 640.0 / 720.0, 1.0]
+    );
+    assert_eq!(Canvas::FRAMED.window(720.0), [0.0, 0.0, 1.0, 1.0]);
+    assert_eq!(native.centred(100.0), 270.0);
+}
+
+#[test]
+fn a_part_draws_only_its_window_of_the_texture() {
+    let Some((_g, _s, mut c)) = compositor() else {
+        return;
+    };
+    let mut rgba = Vec::new();
+    for _y in 0..2 {
+        rgba.extend_from_slice(&[255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255]);
+    }
+    let tex = c.create_texture_nearest(3, 2, &rgba);
+    c.fit((720, 480));
+    c.begin_frame();
+    c.draw_list(&[Draw::Part {
+        x: 0.0,
+        y: 0.0,
+        w: 720.0,
+        h: 480.0,
+        tex,
+        alpha: 1.0,
+        uv: [1.0 / 3.0, 0.0, 1.0 / 3.0, 1.0],
+    }]);
+    let frame = c.read_frame();
+    let at = |x: usize, y: usize| {
+        let o = (y * 720 + x) * 4;
+        [frame[o], frame[o + 1], frame[o + 2]]
+    };
+    assert_eq!(
+        at(10, 240),
+        [0, 255, 0],
+        "the left of the part is not the middle texel"
+    );
+    assert_eq!(
+        at(710, 240),
+        [0, 255, 0],
+        "the right of the part is not the middle texel"
+    );
 }
