@@ -36,7 +36,7 @@ pub struct StickerFields<'a> {
 }
 
 pub const CREDITS: [&str; 11] = [
-    "EXQUISITE SKEUOMORPHIC",
+    "THE EXQUISITE SKEUOMORPHIC",
     "ARTWORK MADE BY MARKUS.",
     "EMULATION POWERED BY MGBA",
     "AND GPSP. UNDERLYING OS IS",
