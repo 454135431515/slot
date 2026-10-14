@@ -60,6 +60,50 @@ impl Appearance {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
+pub enum WallpaperTint {
+    #[default]
+    Off,
+    Low,
+    Medium,
+    High,
+}
+
+impl WallpaperTint {
+    pub const ALL: [WallpaperTint; 4] = [
+        WallpaperTint::Off,
+        WallpaperTint::Low,
+        WallpaperTint::Medium,
+        WallpaperTint::High,
+    ];
+
+    pub fn key(self) -> &'static str {
+        match self {
+            WallpaperTint::Off => "off",
+            WallpaperTint::Low => "low",
+            WallpaperTint::Medium => "medium",
+            WallpaperTint::High => "high",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<WallpaperTint> {
+        WallpaperTint::ALL.into_iter().find(|t| t.key() == value)
+    }
+
+    pub fn step(self, right: bool) -> WallpaperTint {
+        let n = WallpaperTint::ALL.len();
+        let at = WallpaperTint::ALL
+            .iter()
+            .position(|t| *t == self)
+            .unwrap_or(0);
+        WallpaperTint::ALL[if right {
+            (at + 1) % n
+        } else {
+            (at + n - 1) % n
+        }]
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub enum WallpaperPick {
     None,
@@ -133,6 +177,7 @@ pub struct SlotState {
     pub gb_palette: GbPalette,
     pub appearance: Appearance,
     pub wallpaper: WallpaperPick,
+    pub wallpaper_tint: WallpaperTint,
     pub show_recents: bool,
     pub recents: Vec<Recent>,
 }
@@ -226,6 +271,7 @@ impl Default for SlotState {
             gb_palette: GbPalette::DEFAULT,
             appearance: Appearance::Dark,
             wallpaper: WallpaperPick::Default,
+            wallpaper_tint: WallpaperTint::Off,
             show_recents: false,
             recents: Vec::new(),
         }
@@ -273,6 +319,7 @@ pub fn write_slot_state(root: &Path, s: &SlotState) -> std::io::Result<()> {
         s.appearance.name(),
         s.wallpaper.key()
     );
+    text.push_str(&format!("wallpaper_tint={}\n", s.wallpaper_tint.key()));
     text.push_str(&format!("show_recents={}\n", s.show_recents as u8));
     for r in &s.recents {
         text.push_str(&format!("recent={}/{}\n", platform_key(r.platform), r.stem));
@@ -307,6 +354,7 @@ fn parse(text: &str) -> Option<SlotState> {
     let mut gb_palette = None;
     let mut appearance = None;
     let mut wallpaper = None;
+    let mut wallpaper_tint = None;
     let mut show_recents = None;
     let mut recents: Vec<Recent> = Vec::new();
     for line in text.lines().filter(|l| !l.is_empty()) {
@@ -339,6 +387,7 @@ fn parse(text: &str) -> Option<SlotState> {
             "gb_palette" => gb_palette = GbPalette::parse(value),
             "appearance" => appearance = Appearance::parse(value),
             "wallpaper" => wallpaper = Some(WallpaperPick::parse(value)),
+            "wallpaper_tint" => wallpaper_tint = WallpaperTint::parse(value),
             "show_recents" => show_recents = flag(value),
             "recent" => recents.extend(recent_value(value)),
             "shader_gb" => shader_gb = Shader::parse(value).filter(|s| Shader::GB.contains(s)),
@@ -377,6 +426,7 @@ fn parse(text: &str) -> Option<SlotState> {
         gb_palette: gb_palette.unwrap_or(fallback.gb_palette),
         appearance: appearance.unwrap_or(fallback.appearance),
         wallpaper: wallpaper.unwrap_or(fallback.wallpaper),
+        wallpaper_tint: wallpaper_tint.unwrap_or(fallback.wallpaper_tint),
         show_recents: show_recents.unwrap_or(fallback.show_recents),
         recents: recents.into_iter().take(RECENTS_MAX).collect(),
     })

@@ -98,7 +98,13 @@ fn the_rows_run_in_the_order_the_user_chose() {
     );
     assert_eq!(
         QuickRow::GENERAL.map(QuickRow::label),
-        ["Wallpaper", "Theme", "Recents", "Date & Time"]
+        [
+            "Wallpaper",
+            "Wallpaper Tint",
+            "Theme",
+            "Recents",
+            "Date & Time"
+        ]
     );
     assert_eq!(
         QuickRow::SCREEN.map(QuickRow::label),
@@ -146,6 +152,22 @@ fn the_rows_run_in_the_order_the_user_chose() {
 }
 
 #[test]
+fn a_hidden_row_is_stepped_over_and_takes_no_place() {
+    let hidden = [QuickRow::WallpaperTint];
+    assert_eq!(QuickRow::Wallpaper.down(&hidden), QuickRow::Theme);
+    assert_eq!(QuickRow::Theme.up(&hidden), QuickRow::Wallpaper);
+    assert_eq!(QuickRow::Wallpaper.up(&hidden), QuickRow::DateTime);
+    assert_eq!(QuickRow::Theme.position(&hidden), 1);
+    assert_eq!(QuickRow::Wallpaper.down(&[]), QuickRow::WallpaperTint);
+    assert_eq!(QuickRow::Theme.position(&[]), 2);
+    assert_eq!(
+        slot_ui::quick_row_top(QuickRow::Theme, &hidden)
+            - slot_ui::quick_row_top(QuickRow::Wallpaper, &hidden),
+        slot_ui::QUICK_PITCH
+    );
+}
+
+#[test]
 fn the_values_read_as_the_menu_prints_them() {
     assert_eq!(
         QuickValue::ALL.map(QuickValue::text),
@@ -165,6 +187,9 @@ fn the_values_read_as_the_menu_prints_them() {
             "Light",
             "Show",
             "Hide",
+            "Low",
+            "Medium",
+            "High",
         ]
     );
     assert_eq!(QuickValue::flag(true), QuickValue::On);

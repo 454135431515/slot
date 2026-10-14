@@ -127,7 +127,7 @@ fn the_quick_menu_renders_full_screen() {
         ("game", QuickRow::Game),
         ("about", QuickRow::About),
     ] {
-        for _ in bar_on.position()..selected.position() {
+        for _ in bar_on.position(&[])..selected.position(&[]) {
             tap(&mut f, &mut input, Btn::Down);
         }
         bar_on = selected;
@@ -141,7 +141,7 @@ fn the_quick_menu_renders_full_screen() {
 
         let mut spans = Vec::new();
         for row in QuickRow::MAIN {
-            let top = quick_row_top(row) as usize;
+            let top = quick_row_top(row, &[]) as usize;
             let from = match row == selected {
                 true => {
                     let p = beside(name, pointer(&px, top));
@@ -185,13 +185,14 @@ fn the_quick_menu_renders_full_screen() {
         "the pointer moves from row to row: {tips:?}"
     );
 
-    for _ in QuickRow::General.position()..QuickRow::About.position() {
+    for _ in QuickRow::General.position(&[])..QuickRow::About.position(&[]) {
         tap(&mut f, &mut input, Btn::Up);
     }
     tap(&mut f, &mut input, Btn::A);
     let px = composed(&mut f, &mut c, "general-page");
-    for row in QuickRow::GENERAL {
-        let top = quick_row_top(row) as usize;
+    let hidden = f.app().hidden_rows();
+    for row in QuickRow::Wallpaper.shown(hidden) {
+        let top = quick_row_top(row, hidden) as usize;
         let first = *inked(&px, 56..360, top)
             .first()
             .unwrap_or_else(|| panic!("{row:?} has no label"));
@@ -200,7 +201,7 @@ fn the_quick_menu_renders_full_screen() {
             "{row:?}'s label starts at x {first}"
         );
     }
-    for _ in 0..QuickRow::DateTime.position() {
+    for _ in 0..QuickRow::DateTime.position(f.app().hidden_rows()) {
         tap(&mut f, &mut input, Btn::Down);
     }
     tap(&mut f, &mut input, Btn::A);
@@ -225,14 +226,14 @@ fn every_fast_forward_speed_sits_on_the_rows_right_edge_and_clears_the_label() {
     f.upload_faces(&mut c);
     let mut input = Script(VecDeque::new());
     tap(&mut f, &mut input, Btn::Menu);
-    for _ in 0..QuickRow::Game.position() {
+    for _ in 0..QuickRow::Game.position(&[]) {
         tap(&mut f, &mut input, Btn::Down);
     }
     tap(&mut f, &mut input, Btn::A);
     tap(&mut f, &mut input, Btn::Left);
     tap(&mut f, &mut input, Btn::Left);
 
-    let top = quick_row_top(QuickRow::FastForward) as usize;
+    let top = quick_row_top(QuickRow::FastForward, &[]) as usize;
     for name in ["2x", "3x", "4x", "6x", "8x"] {
         let px = composed(&mut f, &mut c, name);
         let value = inked(&px, 360..OUT_W as usize, top);
@@ -273,19 +274,19 @@ fn the_screen_page_sets_gb_palettes_in_line_with_the_rows_above() {
     f.upload_faces(&mut c);
     let mut input = Script(VecDeque::new());
     tap(&mut f, &mut input, Btn::Menu);
-    for _ in 0..QuickRow::Screen.position() {
+    for _ in 0..QuickRow::Screen.position(&[]) {
         tap(&mut f, &mut input, Btn::Down);
     }
     tap(&mut f, &mut input, Btn::A);
-    for _ in 0..QuickRow::GbPalettes.position() {
+    for _ in 0..QuickRow::GbPalettes.position(&[]) {
         tap(&mut f, &mut input, Btn::Down);
     }
     let px = composed(&mut f, &mut c, "screen-page");
 
-    let top = quick_row_top(QuickRow::GbPalettes) as usize;
+    let top = quick_row_top(QuickRow::GbPalettes, &[]) as usize;
     beside("GB Palettes", pointer(&px, top));
     for row in QuickRow::SCREEN {
-        let top = quick_row_top(row) as usize;
+        let top = quick_row_top(row, &[]) as usize;
         if row != QuickRow::GbPalettes {
             assert!(pointer(&px, top).is_none(), "a pointer at {row:?} as well");
         }
@@ -318,7 +319,7 @@ fn the_about_label_is_on_the_tinted_wallpaper() {
     f.upload_faces(&mut c);
     let mut input = Script(VecDeque::new());
     tap(&mut f, &mut input, Btn::Menu);
-    for _ in 0..QuickRow::About.position() {
+    for _ in 0..QuickRow::About.position(&[]) {
         tap(&mut f, &mut input, Btn::Down);
     }
     let menu = composed(&mut f, &mut c, "about-row");

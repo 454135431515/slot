@@ -8,8 +8,8 @@ use slot_power::{Battery, Charge, LedState, LidPolicy, Power};
 use slot_retro::LinkChannel;
 use slot_store::{
     format_stamp, read_slot_state, scan, write_slot_state, Cart, Core, GbPalette, Platform, Shader,
-    SlotState, StateEntry, StateRing, Theme, WallpaperPick, BLUE_LIGHT_MAX, BRIGHTNESS_MAX,
-    FF_SPEEDS, RING_MAX, RUN_AHEAD_MAX, VOLUME_MAX,
+    SlotState, StateEntry, StateRing, Theme, WallpaperPick, WallpaperTint, BLUE_LIGHT_MAX,
+    BRIGHTNESS_MAX, FF_SPEEDS, RING_MAX, RUN_AHEAD_MAX, VOLUME_MAX,
 };
 use slot_ui::{
     board_from, board_zoom, draw_empty_slot, draw_footer, draw_ground, draw_slot_name,
@@ -692,6 +692,12 @@ impl App {
             } else {
                 QuickValue::Hide
             }),
+            QuickRow::WallpaperTint => Some(match self.state.wallpaper_tint {
+                WallpaperTint::Off => QuickValue::Off,
+                WallpaperTint::Low => QuickValue::Low,
+                WallpaperTint::Medium => QuickValue::Medium,
+                WallpaperTint::High => QuickValue::High,
+            }),
             QuickRow::Theme => Some(if self.light() {
                 QuickValue::Light
             } else {
@@ -792,6 +798,31 @@ impl App {
             WallpaperPick::File(_) | WallpaperPick::Random => self.wallpaper.or(self.ground),
         };
         draw_ground(face, out);
+        let alpha = tint_alpha(self.state.wallpaper_tint);
+        if alpha > 0.0 && self.own_wallpaper_shown() {
+            out.push(Draw::Rect {
+                x: 0.0,
+                y: 0.0,
+                w: OUT_W as f32,
+                h: OUT_H as f32,
+                colour: [0.0, 0.0, 0.0, alpha],
+            });
+        }
+    }
+
+    fn own_wallpaper_shown(&self) -> bool {
+        match self.state.wallpaper {
+            WallpaperPick::File(_) => self.wallpaper.is_some(),
+            WallpaperPick::Random => self.random_drawn() && self.wallpaper.is_some(),
+            _ => false,
+        }
+    }
+
+    pub fn hidden_rows(&self) -> &'static [QuickRow] {
+        match self.state.wallpaper {
+            WallpaperPick::File(_) | WallpaperPick::Random => &[],
+            _ => &[QuickRow::WallpaperTint],
+        }
     }
 
     fn random_drawn(&self) -> bool {
@@ -1535,8 +1566,8 @@ impl App {
 
     fn quick_menu_input(&mut self, row: QuickRow, action: Action) {
         let row = match action {
-            Action::GbaDown(Btn::Up) => row.up(),
-            Action::GbaDown(Btn::Down) => row.down(),
+            Action::GbaDown(Btn::Up) => row.up(self.hidden_rows()),
+            Action::GbaDown(Btn::Down) => row.down(self.hidden_rows()),
             Action::GbaDown(Btn::Left) => return self.change_setting(row, false),
             Action::GbaDown(Btn::Right) => return self.change_setting(row, true),
             Action::GbaDown(Btn::A) => return self.open_quick_row(row),
@@ -1577,7 +1608,8 @@ impl App {
             | QuickRow::Rumble
             | QuickRow::Theme
             | QuickRow::Recents
-            | QuickRow::Wallpaper => {}
+            | QuickRow::Wallpaper
+            | QuickRow::WallpaperTint => {}
         }
     }
 
@@ -1635,6 +1667,7 @@ impl App {
                 s.runahead = (s.runahead + if right { 1 } else { n - 1 }) % n;
             }
             QuickRow::Theme => s.appearance = s.appearance.toggle(),
+            QuickRow::WallpaperTint => s.wallpaper_tint = s.wallpaper_tint.step(right),
             QuickRow::Wallpaper
             | QuickRow::Recents
             | QuickRow::DateTime
@@ -2290,6 +2323,7 @@ impl App {
             }
             Phase::QuickMenu { row } => QuickMenu {
                 row: *row,
+                hidden: self.hidden_rows(),
                 values: QuickRow::ALL.map(|r| self.quick_value(r)),
                 clock: self.quick_clock_faces,
                 wallpaper: self.quick_wallpaper_faces,
@@ -3755,6 +3789,15 @@ pub fn runahead_for(core: Core, platform: Platform, frames: u8) -> u8 {
     match (core, platform) {
         (Core::Mgba, Platform::Gba) => frames,
         _ => 0,
+    }
+}
+
+fn tint_alpha(tint: WallpaperTint) -> f32 {
+    match tint {
+        WallpaperTint::Off => 0.0,
+        WallpaperTint::Low => 0.25,
+        WallpaperTint::Medium => 0.45,
+        WallpaperTint::High => 0.65,
     }
 }
 

@@ -44,12 +44,12 @@ fn press(a: &mut App, btn: Btn) {
 fn open_at(a: &mut App, row: QuickRow) {
     a.apply(Action::QuickMenu);
     let parent = row.parent();
-    for _ in 0..parent.unwrap_or(row).position() {
+    for _ in 0..parent.unwrap_or(row).position(&[]) {
         press(a, Btn::Down);
     }
     if parent.is_some() {
         press(a, Btn::A);
-        for _ in 0..row.position() {
+        for _ in 0..row.position(a.hidden_rows()) {
             press(a, Btn::Down);
         }
     }
@@ -294,7 +294,7 @@ fn rumble_and_fast_forward_sound_flip_on_either_arrow_and_save() {
     );
     press(&mut a, Btn::Right);
     assert_eq!(card(&d), (false, true));
-    for _ in QuickRow::FastForwardSound.position()..QuickRow::Rumble.position() {
+    for _ in QuickRow::FastForwardSound.position(&[])..QuickRow::Rumble.position(&[]) {
         press(&mut a, Btn::Down);
     }
     press(&mut a, Btn::Right);
@@ -413,7 +413,7 @@ fn each_platform_keeps_its_own_shader_wraps_and_starts_on_grid_and_simpletex() {
         );
     }
     assert_eq!(read_slot_state(d.path()).shader_gb, Shader::Simpletex);
-    for _ in QuickRow::GbaShader.position()..QuickRow::GbShader.position() {
+    for _ in QuickRow::GbaShader.position(&[])..QuickRow::GbShader.position(&[]) {
         press(&mut a, Btn::Down);
     }
     press(&mut a, Btn::Left);
@@ -668,14 +668,14 @@ fn the_arrows_stand_only_around_the_selected_rows_value() {
         "rumble's ON is not grey"
     );
     press(&mut a, Btn::B);
-    for _ in QuickRow::General.position()..QuickRow::Game.position() {
+    for _ in QuickRow::General.position(&[])..QuickRow::Game.position(&[]) {
         press(&mut a, Btn::Up);
     }
     press(&mut a, Btn::A);
     let out = frame(&a);
     assert!(drawn(&out, 500), "the date and time is not grey");
 
-    for _ in 0..QuickRow::DateTime.position() {
+    for _ in 0..QuickRow::DateTime.position(a.hidden_rows()) {
         press(&mut a, Btn::Down);
     }
     let out = frame(&a);
@@ -782,7 +782,7 @@ fn gb_palettes_flips_on_either_arrow_and_saves() {
 
 #[test]
 fn no_row_in_hand_runs_its_arrows_into_its_label() {
-    let (_d, mut a, _) = on_carousel();
+    let (_d, mut a) = on_own_wallpaper(slot_store::WallpaperTint::Off);
     let id = TexId::from_raw;
     a.set_quick_menu_faces(QuickMenuFaces {
         labels: QuickRow::ALL
@@ -859,4 +859,134 @@ fn the_about_label_sits_on_the_same_tinted_ground_as_the_menu() {
         menu[..2],
         "the About label is not on the menu's tinted ground"
     );
+}
+
+fn on_own_wallpaper(tint: slot_store::WallpaperTint) -> (TempDir, App) {
+    let (d, _, _) = on_carousel_with(SlotState {
+        wallpaper: WallpaperPick::File("bright.png".into()),
+        wallpaper_tint: tint,
+        ..SlotState::default()
+    });
+    let dir = d.path().join("Wallpapers");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("bright.png"), b"png").unwrap();
+    let (mut a, _) = app_booting_at(d.path(), CLOCK_IS_SET);
+    a.set_ground(TexId::from_raw(800));
+    a.set_wallpaper(TexId::from_raw(802));
+    (d, a)
+}
+
+fn black_washes(draws: &[Draw]) -> Vec<f32> {
+    draws
+        .iter()
+        .filter_map(|d| match d {
+            Draw::Rect { x, y, w, h, colour }
+                if *x == 0.0
+                    && *y == 0.0
+                    && *w == OUT_W as f32
+                    && *h == slot_ui::OUT_H as f32
+                    && colour[..3] == [0.0; 3] =>
+            {
+                Some(colour[3])
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn wallpaper_tint_hides_until_a_wallpaper_of_your_own_is_picked() {
+    let (d, mut a, _) = on_carousel();
+    let dir = d.path().join("Wallpapers");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("a.png"), b"png").unwrap();
+    open_at(&mut a, QuickRow::Wallpaper);
+    press(&mut a, Btn::Down);
+    assert_eq!(
+        a.quick_menu(),
+        Some(QuickRow::Theme),
+        "the tint row showed on the default wallpaper"
+    );
+    press(&mut a, Btn::Up);
+    for (pick, shown) in [
+        (WallpaperPick::Blur, false),
+        (WallpaperPick::File("a.png".into()), true),
+        (WallpaperPick::None, false),
+        (WallpaperPick::Random, true),
+        (WallpaperPick::Default, false),
+    ] {
+        press(&mut a, Btn::Right);
+        assert_eq!(a.resolved_wallpaper(), pick);
+        press(&mut a, Btn::Down);
+        let below = if shown {
+            QuickRow::WallpaperTint
+        } else {
+            QuickRow::Theme
+        };
+        assert_eq!(a.quick_menu(), Some(below), "below {pick:?}");
+        press(&mut a, Btn::Up);
+    }
+}
+
+#[test]
+fn wallpaper_tint_steps_off_low_medium_high_and_saves() {
+    use slot_store::WallpaperTint;
+    let (d, mut a) = on_own_wallpaper(WallpaperTint::Off);
+    open_at(&mut a, QuickRow::WallpaperTint);
+    assert_eq!(
+        a.quick_value(QuickRow::WallpaperTint),
+        Some(QuickValue::Off)
+    );
+    for (value, tint) in [
+        (QuickValue::Low, WallpaperTint::Low),
+        (QuickValue::Medium, WallpaperTint::Medium),
+        (QuickValue::High, WallpaperTint::High),
+        (QuickValue::Off, WallpaperTint::Off),
+    ] {
+        press(&mut a, Btn::Right);
+        assert_eq!(a.quick_value(QuickRow::WallpaperTint), Some(value));
+        assert_eq!(read_slot_state(d.path()).wallpaper_tint, tint);
+    }
+    press(&mut a, Btn::Left);
+    assert_eq!(
+        a.quick_value(QuickRow::WallpaperTint),
+        Some(QuickValue::High)
+    );
+}
+
+#[test]
+fn the_tint_darkens_your_own_wallpaper_on_the_shelf() {
+    use slot_store::WallpaperTint;
+    let (_d, a) = on_own_wallpaper(WallpaperTint::Off);
+    assert_eq!(black_washes(&frame(&a)), Vec::<f32>::new());
+    let mut seen = Vec::new();
+    for tint in [
+        WallpaperTint::Low,
+        WallpaperTint::Medium,
+        WallpaperTint::High,
+    ] {
+        let (_d, a) = on_own_wallpaper(tint);
+        let draws = frame(&a);
+        let wall = draws
+            .iter()
+            .position(|d| matches!(d, Draw::Tex { tex, .. } if *tex == TexId::from_raw(802)))
+            .expect("the wallpaper was not drawn");
+        let washes = black_washes(&draws[wall..]);
+        assert_eq!(washes.len(), 1, "{tint:?}: {washes:?}");
+        seen.push(washes[0]);
+    }
+    assert!(
+        seen.windows(2).all(|w| w[0] < w[1]),
+        "each step is not darker than the last: {seen:?}"
+    );
+}
+
+#[test]
+fn the_tint_leaves_the_default_wallpaper_alone() {
+    let (_d, mut a, _) = on_carousel_with(SlotState {
+        wallpaper_tint: slot_store::WallpaperTint::High,
+        ..SlotState::default()
+    });
+    a.set_ground(TexId::from_raw(800));
+    assert_eq!(black_washes(&frame(&a)), Vec::<f32>::new());
 }

@@ -3,7 +3,7 @@ mod common;
 use common::tmp_root;
 use slot_store::{
     atomic_write, read_slot_state, write_slot_state, Appearance, GbPalette, Platform, Shader,
-    SlotState, WallpaperPick, FF_SPEEDS, FF_SPEED_DEFAULT,
+    SlotState, WallpaperPick, WallpaperTint, FF_SPEEDS, FF_SPEED_DEFAULT,
 };
 use tempfile::tempdir;
 
@@ -213,6 +213,7 @@ fn a_card_from_before_the_settings_keeps_all_its_values() {
             gb_palette: GbPalette::DEFAULT,
             appearance: Appearance::Dark,
             wallpaper: WallpaperPick::Default,
+            wallpaper_tint: WallpaperTint::Off,
             show_recents: false,
             recents: Vec::new(),
         }
@@ -237,6 +238,7 @@ fn the_quick_menu_settings_round_trip_as_their_own_lines() {
         runahead: 1,
         gb_palettes: true,
         gb_palette: GbPalette::parse("GBC Dark Green →A").unwrap(),
+        wallpaper_tint: WallpaperTint::Medium,
         ..SlotState::default()
     };
     write_slot_state(d.path(), &s).unwrap();
@@ -257,6 +259,7 @@ fn the_quick_menu_settings_round_trip_as_their_own_lines() {
         "gb_palettes=1",
         "gb_palette=GBC Dark Green →A",
         "appearance=dark",
+        "wallpaper_tint=medium",
     ] {
         assert!(text.lines().any(|l| l == line), "no {line} in {text:?}");
     }
@@ -476,4 +479,15 @@ fn a_card_with_one_colour_correction_setting_starts_both_systems_from_it() {
         (true, false),
         "the old line overrode a system's own setting"
     );
+}
+
+#[test]
+fn a_wallpaper_tint_it_does_not_know_reads_as_off() {
+    let d = tmp_root();
+    std::fs::write(
+        d.path().join("Config/slot.state"),
+        "clock_set=1\nwallpaper=a.png\nwallpaper_tint=blinding\n",
+    )
+    .unwrap();
+    assert_eq!(read_slot_state(d.path()).wallpaper_tint, WallpaperTint::Off);
 }

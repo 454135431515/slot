@@ -26,10 +26,11 @@ pub enum QuickRow {
     Wallpaper,
     General,
     Recents,
+    WallpaperTint,
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 20] = [
+    pub const ALL: [QuickRow; 21] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Screen,
@@ -50,6 +51,7 @@ impl QuickRow {
         QuickRow::Wallpaper,
         QuickRow::General,
         QuickRow::Recents,
+        QuickRow::WallpaperTint,
     ];
 
     pub const MAIN: [QuickRow; 4] = [
@@ -59,8 +61,9 @@ impl QuickRow {
         QuickRow::About,
     ];
 
-    pub const GENERAL: [QuickRow; 4] = [
+    pub const GENERAL: [QuickRow; 5] = [
         QuickRow::Wallpaper,
+        QuickRow::WallpaperTint,
         QuickRow::Theme,
         QuickRow::Recents,
         QuickRow::DateTime,
@@ -102,9 +105,11 @@ impl QuickRow {
             | QuickRow::Turbo
             | QuickRow::Rumble
             | QuickRow::EjectSave => &QuickRow::GAME,
-            QuickRow::Wallpaper | QuickRow::DateTime | QuickRow::Theme | QuickRow::Recents => {
-                &QuickRow::GENERAL
-            }
+            QuickRow::Wallpaper
+            | QuickRow::WallpaperTint
+            | QuickRow::DateTime
+            | QuickRow::Theme
+            | QuickRow::Recents => &QuickRow::GENERAL,
             _ => &QuickRow::MAIN,
         }
     }
@@ -127,8 +132,19 @@ impl QuickRow {
         }
     }
 
-    pub fn position(self) -> usize {
-        self.page().iter().position(|r| *r == self).unwrap_or(0)
+    pub fn shown(self, hidden: &[QuickRow]) -> Vec<QuickRow> {
+        self.page()
+            .iter()
+            .copied()
+            .filter(|r| !hidden.contains(r))
+            .collect()
+    }
+
+    pub fn position(self, hidden: &[QuickRow]) -> usize {
+        self.shown(hidden)
+            .iter()
+            .position(|r| *r == self)
+            .unwrap_or(0)
     }
 
     pub fn label(self) -> &'static str {
@@ -153,6 +169,7 @@ impl QuickRow {
             QuickRow::Wallpaper => "Wallpaper",
             QuickRow::General => "General",
             QuickRow::Recents => "Recents",
+            QuickRow::WallpaperTint => "Wallpaper Tint",
         }
     }
 
@@ -167,14 +184,14 @@ impl QuickRow {
         )
     }
 
-    pub fn up(self) -> QuickRow {
-        let page = self.page();
-        page[(self.position() + page.len() - 1) % page.len()]
+    pub fn up(self, hidden: &[QuickRow]) -> QuickRow {
+        let rows = self.shown(hidden);
+        rows[(self.position(hidden) + rows.len() - 1) % rows.len()]
     }
 
-    pub fn down(self) -> QuickRow {
-        let page = self.page();
-        page[(self.position() + 1) % page.len()]
+    pub fn down(self, hidden: &[QuickRow]) -> QuickRow {
+        let rows = self.shown(hidden);
+        rows[(self.position(hidden) + 1) % rows.len()]
     }
 }
 
@@ -195,10 +212,13 @@ pub enum QuickValue {
     Light,
     Show,
     Hide,
+    Low,
+    Medium,
+    High,
 }
 
 impl QuickValue {
-    pub const ALL: [QuickValue; 15] = [
+    pub const ALL: [QuickValue; 18] = [
         QuickValue::Speed2,
         QuickValue::Speed3,
         QuickValue::Speed4,
@@ -214,6 +234,9 @@ impl QuickValue {
         QuickValue::Light,
         QuickValue::Show,
         QuickValue::Hide,
+        QuickValue::Low,
+        QuickValue::Medium,
+        QuickValue::High,
     ];
 
     pub fn index(self) -> usize {
@@ -237,6 +260,9 @@ impl QuickValue {
             QuickValue::Light => "Light",
             QuickValue::Show => "Show",
             QuickValue::Hide => "Hide",
+            QuickValue::Low => "Low",
+            QuickValue::Medium => "Medium",
+            QuickValue::High => "High",
         }
     }
 
@@ -402,6 +428,7 @@ pub struct QuickMenuFaces {
 
 pub struct QuickMenu<'a> {
     pub row: QuickRow,
+    pub hidden: &'a [QuickRow],
     pub values: [Option<QuickValue>; QuickRow::ALL.len()],
     pub clock: Option<[(TexId, u32, u32); 2]>,
     pub wallpaper: Option<[(TexId, u32, u32); 2]>,
@@ -422,8 +449,8 @@ impl QuickMenu<'_> {
             .map(|l| l[1].1)
             .max()
             .unwrap_or(0);
-        for &row in self.row.page() {
-            let y = quick_row_top(row) + TYPE_DROP;
+        for row in self.row.shown(self.hidden) {
+            let y = quick_row_top(row, self.hidden) + TYPE_DROP;
             let lit = row == self.row;
             if let Some(&(tex, w, h)) = faces.labels.get(row.index()).map(|l| &l[lit as usize]) {
                 let x = match row.page() == QuickRow::MAIN {
@@ -496,9 +523,9 @@ pub fn draw_menu_ground(ground: Option<TexId>, out: &mut Vec<Draw>) {
     }
 }
 
-pub fn quick_row_top(row: QuickRow) -> f32 {
-    let top = (LEGEND_Y - QUICK_PITCH * row.page().len() as f32) / 2.0;
-    top + QUICK_PITCH * row.position() as f32
+pub fn quick_row_top(row: QuickRow, hidden: &[QuickRow]) -> f32 {
+    let top = (LEGEND_Y - QUICK_PITCH * row.shown(hidden).len() as f32) / 2.0;
+    top + QUICK_PITCH * row.position(hidden) as f32
 }
 
 fn push(out: &mut Vec<Draw>, tex: TexId, x: f32, y: f32, w: u32, h: u32) {
