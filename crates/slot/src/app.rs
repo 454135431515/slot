@@ -326,6 +326,7 @@ pub struct App {
     ground: Option<TexId>,
     blur: Option<TexId>,
     wallpaper: Option<TexId>,
+    random_wallpaper: Option<Option<String>>,
     battery_percent: slot_ui::Printed,
     bolt: Option<TexId>,
     slot_faces: Option<(TexId, TexId)>,
@@ -460,6 +461,7 @@ impl App {
             ground: None,
             blur: None,
             wallpaper: None,
+            random_wallpaper: None,
             battery_percent: slot_ui::Printed::default(),
             bolt: None,
             slot_faces: None,
@@ -726,15 +728,36 @@ impl App {
         }
     }
 
+    pub fn shown_wallpaper(&mut self) -> Option<String> {
+        match self.resolved_wallpaper() {
+            WallpaperPick::File(name) => Some(name),
+            WallpaperPick::Random => self.random_wallpaper(),
+            _ => None,
+        }
+    }
+
+    fn random_wallpaper(&mut self) -> Option<String> {
+        if self.random_wallpaper.is_none() {
+            let seed = self.wall_secs().unsigned_abs();
+            let pick = self
+                .root()
+                .and_then(|root| crate::wallpaper::pick(root, seed))
+                .and_then(|path| Some(path.file_name()?.to_str()?.to_owned()));
+            self.random_wallpaper = Some(pick);
+        }
+        self.random_wallpaper.clone().flatten()
+    }
+
     fn cycle_wallpaper(&mut self, right: bool) {
         let mut choices = vec![
             WallpaperPick::None,
+            WallpaperPick::Random,
             WallpaperPick::Default,
             WallpaperPick::Blur,
         ];
         choices.extend(self.wallpaper_files().into_iter().map(WallpaperPick::File));
         let key = self.resolved_wallpaper().key();
-        let at = choices.iter().position(|c| c.key() == key).unwrap_or(1);
+        let at = choices.iter().position(|c| c.key() == key).unwrap_or(2);
         let n = choices.len();
         let next = if right {
             (at + 1) % n
@@ -748,10 +771,15 @@ impl App {
         let face = match &self.state.wallpaper {
             WallpaperPick::None => None,
             WallpaperPick::Default => self.ground,
+            WallpaperPick::Random if !self.random_drawn() => self.ground,
             WallpaperPick::Blur => self.blur.or(self.ground),
-            WallpaperPick::File(_) => self.wallpaper.or(self.ground),
+            WallpaperPick::File(_) | WallpaperPick::Random => self.wallpaper.or(self.ground),
         };
         draw_ground(face, out);
+    }
+
+    fn random_drawn(&self) -> bool {
+        matches!(self.random_wallpaper, Some(Some(_)))
     }
 
     pub fn set_sticker_face(&mut self, face: TexId) {

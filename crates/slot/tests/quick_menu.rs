@@ -106,11 +106,12 @@ fn the_quick_menu_is_only_on_the_carousel() {
 }
 
 #[test]
-fn wallpaper_cycles_none_default_and_the_folder_and_saves() {
+fn wallpaper_cycles_none_random_default_blur_then_the_folder_and_saves() {
     let (d, mut a, _) = on_carousel();
     let dir = d.path().join("Wallpapers");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("b.png"), b"png").unwrap();
+    std::fs::write(dir.join("Crt.png"), b"png").unwrap();
     std::fs::write(dir.join("a.png"), b"png").unwrap();
     open_at(&mut a, QuickRow::Wallpaper);
     assert_eq!(a.quick_menu(), Some(QuickRow::Wallpaper));
@@ -122,15 +123,21 @@ fn wallpaper_cycles_none_default_and_the_folder_and_saves() {
     press(&mut a, Btn::Right);
     assert_eq!(a.resolved_wallpaper(), WallpaperPick::Blur);
     assert_eq!(a.resolved_wallpaper().label(), "DEFAULT BLUR");
-    press(&mut a, Btn::Right);
-    assert_eq!(a.resolved_wallpaper(), WallpaperPick::File("a.png".into()));
-    press(&mut a, Btn::Right);
-    assert_eq!(a.resolved_wallpaper(), WallpaperPick::File("b.png".into()));
+    for name in ["a.png", "b.png", "Crt.png"] {
+        press(&mut a, Btn::Right);
+        assert_eq!(a.resolved_wallpaper(), WallpaperPick::File(name.into()));
+    }
     press(&mut a, Btn::Right);
     assert_eq!(a.resolved_wallpaper(), WallpaperPick::None);
     assert_eq!(read_slot_state(d.path()).wallpaper, WallpaperPick::None);
     press(&mut a, Btn::Right);
+    assert_eq!(a.resolved_wallpaper(), WallpaperPick::Random);
+    assert_eq!(a.resolved_wallpaper().label(), "Random");
+    assert_eq!(read_slot_state(d.path()).wallpaper, WallpaperPick::Random);
+    press(&mut a, Btn::Right);
     assert_eq!(a.resolved_wallpaper(), WallpaperPick::Default);
+    press(&mut a, Btn::Left);
+    assert_eq!(a.resolved_wallpaper(), WallpaperPick::Random);
     press(&mut a, Btn::Left);
     assert_eq!(a.resolved_wallpaper(), WallpaperPick::None);
     press(&mut a, Btn::A);
@@ -139,6 +146,55 @@ fn wallpaper_cycles_none_default_and_the_folder_and_saves() {
         Some(QuickRow::Wallpaper),
         "wallpaper opened a page"
     );
+}
+
+fn random_card(names: &[&str]) -> TempDir {
+    let (d, _, _) = on_carousel_with(SlotState {
+        wallpaper: WallpaperPick::Random,
+        ..SlotState::default()
+    });
+    let dir = d.path().join("Wallpapers");
+    std::fs::create_dir_all(&dir).unwrap();
+    for name in names {
+        std::fs::write(dir.join(name), b"png").unwrap();
+    }
+    d
+}
+
+#[test]
+fn random_shows_one_of_the_folder_and_keeps_it_for_the_boot() {
+    let d = random_card(&["a.png", "b.png", "c.png"]);
+    let (mut a, _) = app_booting_at(d.path(), CLOCK_IS_SET);
+    let first = a.shown_wallpaper().expect("random showed nothing");
+    assert!(
+        ["a.png", "b.png", "c.png"].contains(&first.as_str()),
+        "{first}"
+    );
+    for _ in 0..5 {
+        assert_eq!(a.shown_wallpaper().as_deref(), Some(first.as_str()));
+    }
+}
+
+#[test]
+fn random_deals_every_wallpaper_once_before_a_repeat_across_boots() {
+    let names = ["a.png", "b.png", "c.png"];
+    let d = random_card(&names);
+    let mut seen: Vec<String> = (0..names.len())
+        .map(|_| {
+            let (mut a, _) = app_booting_at(d.path(), CLOCK_IS_SET);
+            a.shown_wallpaper().expect("random showed nothing")
+        })
+        .collect();
+    seen.sort();
+    assert_eq!(seen, names);
+}
+
+#[test]
+fn random_with_an_empty_folder_shows_the_default() {
+    let d = random_card(&[]);
+    let (mut a, _) = app_booting_at(d.path(), CLOCK_IS_SET);
+    assert_eq!(a.resolved_wallpaper(), WallpaperPick::Random);
+    assert_eq!(a.shown_wallpaper(), None);
 }
 
 #[test]

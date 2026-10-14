@@ -5,7 +5,7 @@ use slot_gfx::{Compositor, Draw, ScreenEffect, TexId, OUT_H, OUT_W};
 const PAPER: &[u8] = include_bytes!("../assets/paper.png");
 use slot_input::{InputSource, Millis};
 use slot_power::{Platform, Power};
-use slot_store::{format_stamp, WallpaperPick};
+use slot_store::format_stamp;
 use slot_ui::{
     arrows_hint_coloured, arrows_hint_face, badge_face, bezel_face, cart_shadow, chip_face,
     chip_shadow_face, date_time_text, footer_ink, gb_cart_shadow, hhmm, hint_coloured, hint_face,
@@ -79,7 +79,7 @@ struct QuickClock {
 #[derive(Default)]
 struct WallpaperSync {
     tex: Option<TexId>,
-    image: String,
+    image: Option<String>,
     label: String,
     dim: Option<TexId>,
     lit: Option<TexId>,
@@ -876,11 +876,10 @@ fn sync_clock(app: &mut App, compositor: &mut Compositor, clocks: &mut Clocks) {
 }
 
 fn sync_wallpaper(app: &mut App, compositor: &mut Compositor, state: &mut WallpaperSync) {
-    let stored = app.wallpaper();
-    let key = stored.key();
-    if state.image != key {
-        state.image = key;
-        if let WallpaperPick::File(name) = &stored {
+    let shown = app.shown_wallpaper();
+    if state.image != shown {
+        state.image = shown.clone();
+        if let Some(name) = &shown {
             if let Some(rgba) = app
                 .root()
                 .map(|root| root.join("Wallpapers").join(name))

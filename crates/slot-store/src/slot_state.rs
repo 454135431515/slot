@@ -63,6 +63,7 @@ impl Appearance {
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub enum WallpaperPick {
     None,
+    Random,
     #[default]
     Default,
     Blur,
@@ -73,6 +74,7 @@ impl WallpaperPick {
     pub fn key(&self) -> String {
         match self {
             WallpaperPick::None => "none".to_string(),
+            WallpaperPick::Random => "random".to_string(),
             WallpaperPick::Default => "default".to_string(),
             WallpaperPick::Blur => "default_blur".to_string(),
             WallpaperPick::File(name) => name.clone(),
@@ -82,6 +84,7 @@ impl WallpaperPick {
     pub fn label(&self) -> String {
         match self {
             WallpaperPick::None => "None".to_string(),
+            WallpaperPick::Random => "Random".to_string(),
             WallpaperPick::Default => "Default".to_string(),
             WallpaperPick::Blur => "DEFAULT BLUR".to_string(),
             WallpaperPick::File(name) => name
@@ -95,6 +98,7 @@ impl WallpaperPick {
     pub fn parse(value: &str) -> WallpaperPick {
         match value {
             "none" => WallpaperPick::None,
+            "random" => WallpaperPick::Random,
             "" | "default" => WallpaperPick::Default,
             "default_blur" => WallpaperPick::Blur,
             other => WallpaperPick::File(other.to_string()),
