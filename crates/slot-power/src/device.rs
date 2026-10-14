@@ -143,10 +143,12 @@ impl DevicePlatform {
 
     fn breadcrumb(&self, line: &str) {
         use std::io::Write;
+        let dir = self.root.join("Logs");
+        let _ = fs::create_dir_all(&dir);
         if let Ok(mut f) = fs::OpenOptions::new()
             .create(true)
             .append(true)
-            .open(self.root.join("ags-shutdown-trace.log"))
+            .open(dir.join("ags-shutdown-trace.log"))
         {
             let _ = writeln!(f, "{} {line}", self.now());
             let _ = f.sync_all();

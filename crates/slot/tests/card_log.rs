@@ -68,7 +68,7 @@ fn the_log_is_copied_onto_the_card_at_boot() {
     .unwrap();
     let _ = app_playing_with_card_log(d.path(), "Emerald", Some(log.clone()));
     assert_eq!(
-        std::fs::read(d.path().join(CARD_LOG_NAME)).unwrap(),
+        std::fs::read(d.path().join("Logs").join(CARD_LOG_NAME)).unwrap(),
         std::fs::read(&log).unwrap()
     );
 }
@@ -79,5 +79,5 @@ fn no_log_on_the_device_puts_none_on_the_card() {
     let off_card = tempfile::tempdir().unwrap();
     let log = off_card.path().join(CARD_LOG_NAME);
     let _ = app_playing_with_card_log(d.path(), "Emerald", Some(log));
-    assert!(!d.path().join(CARD_LOG_NAME).exists());
+    assert!(!d.path().join("Logs").join(CARD_LOG_NAME).exists());
 }

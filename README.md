@@ -62,7 +62,7 @@ above the last line:
 
 ```sh
 export SLOT_ROTATE=ccw
-exec /lib/ld-linux-aarch64.so.1 "$SYS/slot" > "$SD/slot.log" 2>&1
+exec /lib/ld-linux-aarch64.so.1 "$SYS/slot" > "$LOGS/slot.log" 2>&1
 ```
 
 ---

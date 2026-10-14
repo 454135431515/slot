@@ -477,7 +477,7 @@
             <p>If you have one of the untested devices, or have tried slot on a device not listed, please <a href="https://github.com/BrandonKowalski/slot/issues">open an issue on GitHub</a> and let me know how it went.</p>
             <p>RG28XX support was contributed by <a href="https://github.com/GamerAnim">GamerAnim</a>. The RG28XX has its panel mounted in a portrait orientation. slot turns the picture to fit it, but on some units it comes out upside down. If yours does, open <code>System/launch_frontend.sh</code> on the SD card and add <code>export SLOT_ROTATE=ccw</code> just above the last line:</p>
             <pre><code>export SLOT_ROTATE=ccw
-exec /lib/ld-linux-aarch64.so.1 "$SYS/slot" &gt; "$SD/slot.log" 2&gt;&amp;1</code></pre>
+exec /lib/ld-linux-aarch64.so.1 "$SYS/slot" &gt; "$LOGS/slot.log" 2&gt;&amp;1</code></pre>
           </dd>
         </div>
         <div class="qa">

@@ -85,7 +85,9 @@ pub fn copy_to_card(log: &Path, root: &Path) -> std::io::Result<bool> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
         Err(e) => return Err(e),
     };
-    let dest = root.join(CARD_LOG_NAME);
+    let dir = crate::root::logs_dir(root);
+    std::fs::create_dir_all(&dir)?;
+    let dest = dir.join(CARD_LOG_NAME);
     if std::fs::read(&dest).is_ok_and(|old| old == bytes) {
         return Ok(false);
     }
