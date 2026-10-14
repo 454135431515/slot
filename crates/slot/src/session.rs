@@ -237,16 +237,24 @@ impl Session {
                 None => eprintln!("slot: link: a transport arrived with no core to run it"),
             }
         }
+        let mut recoloured = false;
         if let Some(p) = self.app.take_gb_palette() {
             if let Some(emu) = &self.emu {
                 emu.set_option("mgba_gb_colors", p.core_name());
+                recoloured = true;
             }
         }
         if let Some(on) = self.app.take_colour_correction() {
             if let Some((key, value)) = crate::core::colour_option(self.app.core(), on) {
                 if let Some(emu) = &self.emu {
                     emu.set_option(key, value);
+                    recoloured = true;
                 }
+            }
+        }
+        if recoloured && self.held() && !self.app.link_active() {
+            if let Some(emu) = &self.emu {
+                emu.refresh();
             }
         }
         if let Some((stem, serial)) = self.app.take_link_reload() {
@@ -361,7 +369,10 @@ impl Session {
     }
 
     fn held(&self) -> bool {
-        self.app.power_menu().is_some() || self.app.game_menu_open() || self.app.shutting_down()
+        self.app.power_menu().is_some()
+            || self.app.game_menu_open()
+            || self.app.in_game_menu().is_some()
+            || self.app.shutting_down()
     }
 
     fn dozing(&self) -> bool {
