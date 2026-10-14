@@ -22,6 +22,8 @@ const RUN_DIR: &str = "/run";
 
 const CARD_LOG: &str = "/data/slot-card.log";
 
+const WIFI_MODULE: &str = "8821cs";
+
 const KERNEL_LINES: usize = 40;
 
 pub fn uptime_seconds(s: &str) -> Option<String> {
@@ -496,7 +498,9 @@ impl Platform for DevicePlatform {
     }
 
     fn restart(&mut self) -> ! {
-        self.breadcrumb("restart: reached slot, about to sync");
+        self.breadcrumb("restart: reached slot, unloading the WiFi driver");
+        let _ = Command::new("rmmod").arg(WIFI_MODULE).status();
+        self.breadcrumb("restart: WiFi driver unloaded, about to sync");
         let _ = Command::new("sync").status();
         self.breadcrumb("restart: sync returned, about to signal init");
         let _ = Command::new("reboot").status();
