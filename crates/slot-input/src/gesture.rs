@@ -65,11 +65,12 @@ enum Select {
 #[derive(Default)]
 pub struct Gestures {
     select: Select,
-    select_volume_brightness: bool,
+    menu_dpad_display: bool,
     chord_held: u16,
     menu_down_at: Option<Millis>,
     menu_last_tap: Option<Millis>,
     menu_eject_fired: bool,
+    menu_display_chorded: bool,
     power_down_at: Option<Millis>,
     power_hold_fired: bool,
     vol_up_at: Option<Millis>,
@@ -100,8 +101,8 @@ impl Gestures {
         Self::default()
     }
 
-    pub fn set_select_volume_brightness(&mut self, enabled: bool) {
-        self.select_volume_brightness = enabled;
+    pub fn set_menu_dpad_display(&mut self, enabled: bool) {
+        self.menu_dpad_display = enabled;
     }
 
     pub fn ff_latched(&self) -> bool {
@@ -166,9 +167,15 @@ impl Gestures {
     }
 
     fn down(&mut self, b: Btn, now: Millis) -> Vec<Action> {
-        if let (true, Some((bit, action))) =
-            (self.chording(now), chord(b, self.select_volume_brightness))
-        {
+        if let Some((bit, action)) = self.menu_display_chord(b) {
+            self.menu_display_chorded = true;
+            self.menu_down_at = None;
+            self.menu_last_tap = None;
+            self.menu_eject_fired = false;
+            self.chord_held |= bit;
+            return vec![action];
+        }
+        if let (true, Some((bit, action))) = (self.chording(now), chord(b)) {
             self.mark_chorded();
             self.chord_held |= bit;
             return vec![action];
@@ -194,7 +201,7 @@ impl Gestures {
     }
 
     fn up(&mut self, b: Btn, now: Millis) -> Vec<Action> {
-        if let Some((bit, _)) = chord(b, self.select_volume_brightness) {
+        if let Some((bit, _)) = chord(b).or_else(|| display_chord(b)) {
             if self.chord_held & bit != 0 {
                 self.chord_held &= !bit;
                 return Vec::new();
@@ -277,6 +284,7 @@ impl Gestures {
     }
 
     fn menu_down(&mut self, now: Millis) -> Vec<Action> {
+        self.menu_display_chorded = false;
         if self.chording(now) {
             self.mark_chorded();
             self.menu_down_at = None;
@@ -296,6 +304,12 @@ impl Gestures {
     }
 
     fn menu_up(&mut self, now: Millis) -> Vec<Action> {
+        if self.menu_display_chorded {
+            self.menu_display_chorded = false;
+            self.menu_down_at = None;
+            self.menu_eject_fired = false;
+            return Vec::new();
+        }
         let Some(d) = self.menu_down_at.take() else {
             return Vec::new();
         };
@@ -413,12 +427,29 @@ impl Gestures {
     }
 }
 
-fn chord(b: Btn, select_volume_brightness: bool) -> Option<(u16, Action)> {
+impl Gestures {
+    fn menu_display_chord(&self, b: Btn) -> Option<(u16, Action)> {
+        (self.menu_dpad_display
+            && !self.menu_eject_fired
+            && (self.menu_down_at.is_some() || self.menu_display_chorded))
+            .then(|| display_chord(b))
+            .flatten()
+    }
+}
+
+fn display_chord(b: Btn) -> Option<(u16, Action)> {
     Some(match b {
         Btn::Up => (1, Action::BrightnessUp),
         Btn::Down => (2, Action::BrightnessDown),
         Btn::Left => (4, Action::BlueLightDown),
         Btn::Right => (8, Action::BlueLightUp),
+        _ => return None,
+    })
+}
+
+fn chord(b: Btn) -> Option<(u16, Action)> {
+    Some(match b {
+        Btn::Up | Btn::Down | Btn::Left | Btn::Right => display_chord(b)?,
         Btn::L1 => (16, Action::LoadState),
         Btn::R1 => (32, Action::SaveState),
         Btn::Y => (64, Action::ColourCorrectionToggle),
@@ -426,8 +457,6 @@ fn chord(b: Btn, select_volume_brightness: bool) -> Option<(u16, Action)> {
         Btn::R2 => (256, Action::PaletteNext),
         Btn::A => (512, Action::ShaderNext),
         Btn::B => (1024, Action::ShaderPrev),
-        Btn::VolUp if select_volume_brightness => (2048, Action::BrightnessUp),
-        Btn::VolDown if select_volume_brightness => (4096, Action::BrightnessDown),
         Btn::VolUp => (2048, Action::MuteToggle),
         Btn::VolDown => (4096, Action::MuteToggle),
         _ => return None,

@@ -23,7 +23,7 @@ pub struct DeviceInput {
     hall: Option<PathBuf>,
     lid_shut: Option<bool>,
     next_lid_poll: Millis,
-    select_volume_brightness: bool,
+    menu_dpad_display: bool,
 }
 
 impl DeviceInput {
@@ -50,14 +50,14 @@ impl DeviceInput {
     ) -> Self {
         let trace = trace.then(|| Trace::start(root, dev, sys)).flatten();
         let target = baseos_target(release);
-        let select_volume_brightness = target.as_deref() == Some("rg34xx");
-        DeviceInput::open_traced(dev, sys, select_volume_brightness, trace)
+        let menu_dpad_display = target.as_deref() == Some("rg34xx");
+        DeviceInput::open_traced(dev, sys, menu_dpad_display, trace)
     }
 
     fn open_traced(
         dev: &Path,
         sys: &Path,
-        select_volume_brightness: bool,
+        menu_dpad_display: bool,
         trace: Option<Arc<Trace>>,
     ) -> Self {
         let pending: Arc<Mutex<Vec<RawEvent>>> = Arc::new(Mutex::new(Vec::new()));
@@ -83,7 +83,7 @@ impl DeviceInput {
             hall: find_hall(Path::new(PSY)),
             lid_shut: None,
             next_lid_poll: 0,
-            select_volume_brightness,
+            menu_dpad_display,
         }
     }
 }
@@ -226,8 +226,8 @@ impl InputSource for DeviceInput {
         out
     }
 
-    fn select_volume_brightness(&self) -> bool {
-        self.select_volume_brightness
+    fn menu_dpad_display(&self) -> bool {
+        self.menu_dpad_display
     }
 }
 
@@ -261,7 +261,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn only_the_rg34xx_baseos_target_enables_the_volume_brightness_gesture() {
+    fn only_the_rg34xx_baseos_target_enables_the_menu_dpad_display_gesture() {
         let d = tempfile::tempdir().unwrap();
         let release = d.path().join("baseos-release");
         for (target, want) in [

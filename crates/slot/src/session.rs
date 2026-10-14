@@ -171,8 +171,8 @@ impl Session {
         self.sync_pad();
     }
 
-    pub fn set_select_volume_brightness(&mut self, enabled: bool) {
-        self.gestures.set_select_volume_brightness(enabled);
+    pub fn set_menu_dpad_display(&mut self, enabled: bool) {
+        self.gestures.set_menu_dpad_display(enabled);
     }
 
     fn sync_pad(&mut self) {
