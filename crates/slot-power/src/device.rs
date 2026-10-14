@@ -20,6 +20,10 @@ const DEV_INPUT: &str = "/dev/input";
 
 const RUN_DIR: &str = "/run";
 
+const CARD_LOG: &str = "/data/slot-card.log";
+
+const KERNEL_LINES: usize = 40;
+
 pub fn uptime_seconds(s: &str) -> Option<String> {
     let first = s.split_whitespace().next()?;
     if !first.chars().all(|c| c.is_ascii_digit() || c == '.') {
@@ -419,6 +423,17 @@ impl Platform for DevicePlatform {
         read_only(&self.root)
     }
 
+    fn card_log(&self) -> Option<PathBuf> {
+        Some(PathBuf::from(CARD_LOG))
+    }
+
+    fn card_kernel_lines(&self) -> Vec<String> {
+        Command::new("dmesg")
+            .output()
+            .map(|o| card_kernel_lines(&String::from_utf8_lossy(&o.stdout)))
+            .unwrap_or_default()
+    }
+
     fn set_backlight(&mut self, step: u8) {
         let Some(backlight) = &self.backlight else {
             return;
@@ -552,6 +567,23 @@ impl Platform for DevicePlatform {
 
 pub fn read_only(path: &Path) -> bool {
     fs::read_to_string("/proc/mounts").is_ok_and(|m| read_only_in(&m, path))
+}
+
+pub fn card_kernel_lines(dmesg: &str) -> Vec<String> {
+    let lines: Vec<String> = dmesg
+        .lines()
+        .filter(|l| {
+            let l = l.to_ascii_lowercase();
+            l.contains("fat-fs")
+                || l.contains("exfat")
+                || l.contains("remount")
+                || l.contains("i/o error")
+                || (l.contains("mmcblk") && (l.contains("error") || l.contains("fail")))
+        })
+        .map(str::to_owned)
+        .collect();
+    let skip = lines.len().saturating_sub(KERNEL_LINES);
+    lines.into_iter().skip(skip).collect()
 }
 
 pub fn read_only_in(mounts: &str, path: &Path) -> bool {
