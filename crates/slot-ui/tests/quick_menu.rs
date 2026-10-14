@@ -138,7 +138,13 @@ fn the_rows_run_in_the_order_the_user_chose() {
             QuickRow::DateTime,
             QuickRow::About,
             QuickRow::Game,
-            QuickRow::General
+            QuickRow::General,
+            QuickRow::Resume,
+            QuickRow::States,
+            QuickRow::Settings,
+            QuickRow::ExitGame,
+            QuickRow::PlayScreen,
+            QuickRow::PlayGameplay
         ]
     );
     for page in [
@@ -146,6 +152,9 @@ fn the_rows_run_in_the_order_the_user_chose() {
         &QuickRow::SCREEN[..],
         &QuickRow::GAME[..],
         &QuickRow::GENERAL[..],
+        &QuickRow::PLAY[..],
+        &QuickRow::SETTINGS[..],
+        &QuickRow::PLAY_SCREEN[..],
     ] {
         for &row in page {
             assert_eq!(row.page(), page, "{row:?}");
@@ -281,4 +290,91 @@ fn a_label_is_grey_until_its_row_is_in_hand() {
     };
     assert_eq!(inkiest(true), [0xf6, 0xf4, 0xef]);
     assert_eq!(inkiest(false), [0x9a, 0x9a, 0xa4]);
+}
+
+#[test]
+fn the_in_game_pages_hold_their_rows_in_order() {
+    assert_eq!(
+        QuickRow::PLAY,
+        [
+            QuickRow::Resume,
+            QuickRow::States,
+            QuickRow::Settings,
+            QuickRow::ExitGame
+        ]
+    );
+    assert_eq!(
+        QuickRow::SETTINGS,
+        [QuickRow::PlayScreen, QuickRow::PlayGameplay]
+    );
+    assert_eq!(
+        QuickRow::PLAY_SCREEN,
+        [
+            QuickRow::Shader,
+            QuickRow::ColourCorrection,
+            QuickRow::Palette
+        ]
+    );
+    for row in QuickRow::PLAY {
+        assert_eq!(row.parent_in_game(), None, "{row:?}");
+    }
+}
+
+#[test]
+fn in_game_pages_climb_back_through_settings() {
+    assert_eq!(QuickRow::Settings.child(), Some(QuickRow::PlayScreen));
+    assert_eq!(QuickRow::PlayScreen.child(), Some(QuickRow::Shader));
+    assert_eq!(QuickRow::PlayGameplay.child(), Some(QuickRow::FastForward));
+    assert_eq!(
+        QuickRow::Shader.parent_in_game(),
+        Some(QuickRow::PlayScreen)
+    );
+    assert_eq!(
+        QuickRow::PlayGameplay.parent_in_game(),
+        Some(QuickRow::Settings)
+    );
+    assert_eq!(
+        QuickRow::Rumble.parent_in_game(),
+        Some(QuickRow::PlayGameplay)
+    );
+    assert_eq!(QuickRow::Rumble.parent(), Some(QuickRow::Game));
+}
+
+#[test]
+fn in_game_rows_read_as_the_menu_shows_them() {
+    let labels = [
+        (QuickRow::Resume, "Resume"),
+        (QuickRow::States, "States"),
+        (QuickRow::Settings, "Settings"),
+        (QuickRow::ExitGame, "Exit Game"),
+        (QuickRow::PlayScreen, "Screen"),
+        (QuickRow::PlayGameplay, "Gameplay"),
+        (QuickRow::Shader, "Shader"),
+        (QuickRow::ColourCorrection, "Color Correction"),
+        (QuickRow::Palette, "Palette"),
+    ];
+    for (row, label) in labels {
+        assert_eq!(row.label(), label);
+    }
+    for row in QuickRow::PLAY.into_iter().chain(QuickRow::SETTINGS) {
+        assert!(row.centred(), "{row:?}");
+    }
+    for row in QuickRow::PLAY_SCREEN {
+        assert!(!row.opens(), "{row:?}");
+        assert!(!row.centred(), "{row:?}");
+    }
+    assert!(QuickRow::General.centred());
+    assert!(!QuickRow::Rumble.centred());
+}
+
+#[test]
+fn a_hidden_palette_leaves_two_screen_rows() {
+    assert_eq!(
+        QuickRow::Shader.shown(&[QuickRow::Palette]),
+        vec![QuickRow::Shader, QuickRow::ColourCorrection]
+    );
+    assert_eq!(
+        QuickRow::ColourCorrection.down(&[QuickRow::Palette]),
+        QuickRow::Shader
+    );
 }

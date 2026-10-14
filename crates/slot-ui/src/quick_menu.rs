@@ -29,10 +29,19 @@ pub enum QuickRow {
     WallpaperTint,
     GbcShader,
     GbcColourCorrection,
+    Resume,
+    States,
+    Settings,
+    ExitGame,
+    PlayScreen,
+    PlayGameplay,
+    Shader,
+    ColourCorrection,
+    Palette,
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 23] = [
+    pub const ALL: [QuickRow; 32] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Screen,
@@ -56,6 +65,15 @@ impl QuickRow {
         QuickRow::WallpaperTint,
         QuickRow::GbcShader,
         QuickRow::GbcColourCorrection,
+        QuickRow::Resume,
+        QuickRow::States,
+        QuickRow::Settings,
+        QuickRow::ExitGame,
+        QuickRow::PlayScreen,
+        QuickRow::PlayGameplay,
+        QuickRow::Shader,
+        QuickRow::ColourCorrection,
+        QuickRow::Palette,
     ];
 
     pub const MAIN: [QuickRow; 4] = [
@@ -93,6 +111,21 @@ impl QuickRow {
         QuickRow::EjectSave,
     ];
 
+    pub const PLAY: [QuickRow; 4] = [
+        QuickRow::Resume,
+        QuickRow::States,
+        QuickRow::Settings,
+        QuickRow::ExitGame,
+    ];
+
+    pub const SETTINGS: [QuickRow; 2] = [QuickRow::PlayScreen, QuickRow::PlayGameplay];
+
+    pub const PLAY_SCREEN: [QuickRow; 3] = [
+        QuickRow::Shader,
+        QuickRow::ColourCorrection,
+        QuickRow::Palette,
+    ];
+
     pub fn index(self) -> usize {
         self as usize
     }
@@ -118,6 +151,13 @@ impl QuickRow {
             | QuickRow::DateTime
             | QuickRow::Theme
             | QuickRow::Recents => &QuickRow::GENERAL,
+            QuickRow::Resume | QuickRow::States | QuickRow::Settings | QuickRow::ExitGame => {
+                &QuickRow::PLAY
+            }
+            QuickRow::PlayScreen | QuickRow::PlayGameplay => &QuickRow::SETTINGS,
+            QuickRow::Shader | QuickRow::ColourCorrection | QuickRow::Palette => {
+                &QuickRow::PLAY_SCREEN
+            }
             _ => &QuickRow::MAIN,
         }
     }
@@ -127,8 +167,21 @@ impl QuickRow {
             QuickRow::GbaShader => Some(QuickRow::Screen),
             QuickRow::FastForward => Some(QuickRow::Game),
             QuickRow::Wallpaper => Some(QuickRow::General),
+            QuickRow::PlayScreen => Some(QuickRow::Settings),
+            QuickRow::Shader => Some(QuickRow::PlayScreen),
             _ => None,
         }
+    }
+
+    pub fn parent_in_game(self) -> Option<QuickRow> {
+        match self.parent() {
+            Some(QuickRow::Game) => Some(QuickRow::PlayGameplay),
+            parent => parent,
+        }
+    }
+
+    pub fn centred(self) -> bool {
+        [&QuickRow::MAIN[..], &QuickRow::PLAY, &QuickRow::SETTINGS].contains(&self.page())
     }
 
     pub fn child(self) -> Option<QuickRow> {
@@ -136,6 +189,9 @@ impl QuickRow {
             QuickRow::Screen => Some(QuickRow::SCREEN[0]),
             QuickRow::Game => Some(QuickRow::GAME[0]),
             QuickRow::General => Some(QuickRow::GENERAL[0]),
+            QuickRow::Settings => Some(QuickRow::SETTINGS[0]),
+            QuickRow::PlayScreen => Some(QuickRow::PLAY_SCREEN[0]),
+            QuickRow::PlayGameplay => Some(QuickRow::GAME[0]),
             _ => None,
         }
     }
@@ -180,6 +236,15 @@ impl QuickRow {
             QuickRow::General => "General",
             QuickRow::Recents => "Recents",
             QuickRow::WallpaperTint => "Wallpaper Tint",
+            QuickRow::Resume => "Resume",
+            QuickRow::States => "States",
+            QuickRow::Settings => "Settings",
+            QuickRow::ExitGame => "Exit Game",
+            QuickRow::PlayScreen => "Screen",
+            QuickRow::PlayGameplay => "Gameplay",
+            QuickRow::Shader => "Shader",
+            QuickRow::ColourCorrection => "Color Correction",
+            QuickRow::Palette => "Palette",
         }
     }
 
@@ -191,6 +256,12 @@ impl QuickRow {
                 | QuickRow::Screen
                 | QuickRow::Game
                 | QuickRow::General
+                | QuickRow::Resume
+                | QuickRow::States
+                | QuickRow::Settings
+                | QuickRow::ExitGame
+                | QuickRow::PlayScreen
+                | QuickRow::PlayGameplay
         )
     }
 
@@ -420,11 +491,12 @@ pub fn quick_caret_face(right: bool) -> UndoFace {
     UndoFace { rgba, w, h }
 }
 
-pub fn quick_legend_faces() -> [UndoFace; 3] {
+pub fn quick_legend_faces() -> [UndoFace; 4] {
     [
         hint_face("B", "Back"),
         arrows_hint_face("Change"),
         hint_face("A", "Open"),
+        hint_face("B", "Resume"),
     ]
 }
 
@@ -433,7 +505,7 @@ pub struct QuickMenuFaces {
     pub pointer: (TexId, u32, u32),
     pub values: Vec<[(TexId, u32, u32); 2]>,
     pub carets: [(TexId, u32, u32); 2],
-    pub legend: [(TexId, u32); 3],
+    pub legend: [(TexId, u32); 4],
 }
 
 pub struct QuickMenu<'a> {
@@ -453,7 +525,9 @@ impl QuickMenu<'_> {
             return;
         };
         let (right, pad) = (OUT_W as f32 - QUICK_EDGE, MENU_PAD as f32);
-        let main_w = QuickRow::MAIN
+        let main_w = self
+            .row
+            .page()
             .iter()
             .filter_map(|r| faces.labels.get(r.index()))
             .map(|l| l[1].1)
@@ -463,7 +537,7 @@ impl QuickMenu<'_> {
             let y = quick_row_top(row, self.hidden) + TYPE_DROP;
             let lit = row == self.row;
             if let Some(&(tex, w, h)) = faces.labels.get(row.index()).map(|l| &l[lit as usize]) {
-                let x = match row.page() == QuickRow::MAIN {
+                let x = match row.centred() {
                     true => (OUT_W as f32 - main_w as f32) / 2.0,
                     false => QUICK_LABEL_X - pad,
                 };
@@ -495,7 +569,11 @@ impl QuickMenu<'_> {
             push(out, tex, vx, y, w, h);
             push(out, left_tex, vx + pad - CARET_GAP - lw as f32, y, lw, lh);
         }
-        let [back, change, open] = faces.legend;
+        let [back, change, open, resume] = faces.legend;
+        let back = match self.row.page() == QuickRow::PLAY {
+            true => resume,
+            false => back,
+        };
         let other = if self.row.opens() { open } else { change };
         for (tex, w, x) in centred_hints(&[back, other], LEGEND_GAP) {
             push(out, tex, x, LEGEND_Y, w, HINT_H);

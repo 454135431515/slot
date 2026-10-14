@@ -614,7 +614,7 @@ fn fake_faces(a: &mut App) {
             .map(|i| [(id(200 + i), 60, 40), (id(210 + i), 60, 40)])
             .collect(),
         carets: [(id(300), 10, 40), (id(301), 10, 40)],
-        legend: [(id(400), 70), (id(401), 110), (id(402), 80)],
+        legend: [(id(400), 70), (id(401), 110), (id(402), 80), (id(403), 90)],
     });
     a.set_quick_clock_faces((id(500), 150, 40), (id(501), 150, 40));
 }
@@ -830,7 +830,7 @@ fn no_row_in_hand_runs_its_arrows_into_its_label() {
             let f = slot_ui::quick_caret_face(right);
             (id(300 + right as usize), f.w, f.h)
         }),
-        legend: [(id(400), 70), (id(401), 110), (id(402), 80)],
+        legend: [(id(400), 70), (id(401), 110), (id(402), 80), (id(403), 90)],
     });
     for page in [
         &QuickRow::SCREEN[..],

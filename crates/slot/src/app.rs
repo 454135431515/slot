@@ -712,7 +712,16 @@ impl App {
             | QuickRow::Screen
             | QuickRow::Game
             | QuickRow::General
-            | QuickRow::Wallpaper => None,
+            | QuickRow::Wallpaper
+            | QuickRow::Resume
+            | QuickRow::States
+            | QuickRow::Settings
+            | QuickRow::ExitGame
+            | QuickRow::PlayScreen
+            | QuickRow::PlayGameplay
+            | QuickRow::Shader
+            | QuickRow::ColourCorrection
+            | QuickRow::Palette => None,
         }
     }
 
@@ -1617,7 +1626,16 @@ impl App {
             | QuickRow::Theme
             | QuickRow::Recents
             | QuickRow::Wallpaper
-            | QuickRow::WallpaperTint => {}
+            | QuickRow::WallpaperTint
+            | QuickRow::Resume
+            | QuickRow::States
+            | QuickRow::Settings
+            | QuickRow::ExitGame
+            | QuickRow::PlayScreen
+            | QuickRow::PlayGameplay
+            | QuickRow::Shader
+            | QuickRow::ColourCorrection
+            | QuickRow::Palette => {}
         }
     }
 
@@ -1693,7 +1711,16 @@ impl App {
             | QuickRow::About
             | QuickRow::Screen
             | QuickRow::Game
-            | QuickRow::General => return,
+            | QuickRow::General
+            | QuickRow::Resume
+            | QuickRow::States
+            | QuickRow::Settings
+            | QuickRow::ExitGame
+            | QuickRow::PlayScreen
+            | QuickRow::PlayGameplay
+            | QuickRow::Shader
+            | QuickRow::ColourCorrection
+            | QuickRow::Palette => return,
         }
         self.persist();
     }
