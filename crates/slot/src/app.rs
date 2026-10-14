@@ -1134,10 +1134,6 @@ impl App {
         self.platform = platform;
     }
 
-    pub fn platform(&self) -> Platform {
-        self.platform
-    }
-
     pub fn set_named_core(&mut self, named: bool) {
         self.named_core = named;
     }
@@ -1395,7 +1391,7 @@ impl App {
         self.colour_correction_for(self.playing_platform())
     }
 
-    fn playing_platform(&self) -> Platform {
+    pub fn playing_platform(&self) -> Platform {
         self.seated_cart().map_or(self.platform, |c| c.platform)
     }
 

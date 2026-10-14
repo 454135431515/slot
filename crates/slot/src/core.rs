@@ -66,21 +66,10 @@ pub fn open_core_for(
     colour: bool,
     paths: &[PathBuf],
 ) -> Box<dyn RetroCore> {
-    open_core_for_palette(root, core, serial, colour, None, paths)
+    open_core_for_palette(root, core, Platform::Gba, serial, colour, None, paths)
 }
 
 pub fn open_core_for_palette(
-    root: &Path,
-    core: Core,
-    serial: &str,
-    colour: bool,
-    palette: Option<GbPalette>,
-    paths: &[PathBuf],
-) -> Box<dyn RetroCore> {
-    open_core_for_palette_for_platform(root, core, Platform::Gba, serial, colour, palette, paths)
-}
-
-pub fn open_core_for_palette_for_platform(
     root: &Path,
     core: Core,
     platform: Platform,
@@ -95,6 +84,7 @@ pub fn open_core_for_palette_for_platform(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn open_named(
     root: &Path,
     core: Core,
@@ -113,7 +103,7 @@ fn open_named(
         }
         match LibretroCore::open_with(path, &bios, &saves) {
             Ok(mut opened) => {
-                apply_core_options_for_platform(
+                apply_core_options(
                     &mut opened,
                     core,
                     platform,
@@ -199,25 +189,6 @@ pub fn apply_link_options(core: &mut LibretroCore, which: Core, player: u8) {
 }
 
 pub fn apply_core_options(
-    core: &mut LibretroCore,
-    which: Core,
-    serial: &str,
-    bios: bool,
-    colour: bool,
-    palette: Option<GbPalette>,
-) {
-    apply_core_options_for_platform(
-        core,
-        which,
-        Platform::Gba,
-        serial,
-        bios,
-        colour,
-        palette,
-    );
-}
-
-pub fn apply_core_options_for_platform(
     core: &mut LibretroCore,
     which: Core,
     platform: Platform,

@@ -102,7 +102,7 @@ fn picture(
     colour: bool,
     frames: usize,
 ) -> Vec<u8> {
-    let mut core = slot::core::open_core_for_palette_for_platform(
+    let mut core = slot::core::open_core_for_palette(
         root,
         Core::Mgba,
         platform,
