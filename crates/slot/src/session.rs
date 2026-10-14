@@ -250,7 +250,9 @@ impl Session {
             }
         }
         if let Some(on) = self.app.take_colour_correction() {
-            if let Some((key, value)) = crate::core::colour_option(self.app.core(), on) {
+            if let Some((key, value)) =
+                crate::core::colour_option(self.app.core(), self.app.platform(), on)
+            {
                 if let Some(emu) = &self.emu {
                     emu.set_option(key, value);
                     recoloured = true;
@@ -476,6 +478,7 @@ impl Session {
         let opened = open_core(
             &self.root,
             core,
+            platform,
             serial,
             self.app.colour_correction_for(platform),
             palette,
