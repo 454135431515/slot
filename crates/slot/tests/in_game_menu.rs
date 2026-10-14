@@ -305,3 +305,31 @@ fn the_shelf_menu_still_opens_from_the_shelf() {
     assert_eq!(a.quick_menu(), Some(QuickRow::MAIN[0]));
     assert_eq!(a.in_game_menu(), None);
 }
+
+#[test]
+fn exit_game_is_not_offered_with_only_one_cart() {
+    let d = tmp_root_with_carts(&["Emerald"]);
+    let mut a = app_playing_in(d.path(), "Emerald");
+    a.apply(Action::QuickMenu);
+    let mut seen = Vec::new();
+    for _ in 0..4 {
+        seen.push(a.in_game_menu().expect("the menu closed"));
+        press(&mut a, Btn::Down);
+    }
+    assert_eq!(
+        seen,
+        [
+            QuickRow::Resume,
+            QuickRow::States,
+            QuickRow::Settings,
+            QuickRow::Resume
+        ]
+    );
+    assert!(a.in_game_hidden().contains(&QuickRow::ExitGame));
+}
+
+#[test]
+fn exit_game_is_offered_with_two_carts() {
+    let (_d, a) = playing();
+    assert!(!a.in_game_hidden().contains(&QuickRow::ExitGame));
+}

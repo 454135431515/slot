@@ -734,9 +734,11 @@ impl App {
     }
 
     pub fn in_game_hidden(&self) -> &'static [QuickRow] {
-        match self.palette_live {
-            true => &[],
-            false => &[QuickRow::Palette],
+        match (self.palette_live, self.single_cart()) {
+            (true, false) => &[],
+            (false, false) => &[QuickRow::Palette],
+            (true, true) => &[QuickRow::ExitGame],
+            (false, true) => &[QuickRow::Palette, QuickRow::ExitGame],
         }
     }
 
