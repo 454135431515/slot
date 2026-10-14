@@ -322,6 +322,9 @@ pub struct App {
     quick_menu_faces: Option<QuickMenuFaces>,
     quick_clock_faces: Option<[(TexId, u32, u32); 2]>,
     quick_wallpaper_faces: Option<[(TexId, u32, u32); 2]>,
+    quick_palette_faces: Option<[(TexId, u32, u32); 2]>,
+    in_game_menu: Option<QuickRow>,
+    states_from_menu: bool,
     sticker_face: Option<TexId>,
     ground: Option<TexId>,
     blur: Option<TexId>,
@@ -457,6 +460,9 @@ impl App {
             quick_menu_faces: None,
             quick_clock_faces: None,
             quick_wallpaper_faces: None,
+            quick_palette_faces: None,
+            in_game_menu: None,
+            states_from_menu: false,
             sticker_face: None,
             ground: None,
             blur: None,
@@ -671,8 +677,42 @@ impl App {
         }
     }
 
+    pub fn in_game_menu(&self) -> Option<QuickRow> {
+        self.in_game_menu
+    }
+
+    pub fn in_game_hidden(&self) -> &'static [QuickRow] {
+        match self.palette_live {
+            true => &[],
+            false => &[QuickRow::Palette],
+        }
+    }
+
+    pub fn gb_palette_label(&self) -> &'static str {
+        self.state.gb_palette.label()
+    }
+
+    pub fn set_quick_palette_faces(&mut self, dim: (TexId, u32, u32), lit: (TexId, u32, u32)) {
+        self.quick_palette_faces = Some([dim, lit]);
+    }
+
+    fn playing_row(&self, row: QuickRow) -> QuickRow {
+        match (row, self.playing_platform()) {
+            (QuickRow::Shader, Platform::Gba) => QuickRow::GbaShader,
+            (QuickRow::Shader, Platform::Gb) => QuickRow::GbShader,
+            (QuickRow::Shader, Platform::Gbc) => QuickRow::GbcShader,
+            (QuickRow::ColourCorrection, Platform::Gba) => QuickRow::GbaColourCorrection,
+            (QuickRow::ColourCorrection, Platform::Gb) => QuickRow::GbColourCorrection,
+            (QuickRow::ColourCorrection, Platform::Gbc) => QuickRow::GbcColourCorrection,
+            (row, _) => row,
+        }
+    }
+
     pub fn quick_value(&self, row: QuickRow) -> Option<QuickValue> {
         match row {
+            QuickRow::Shader | QuickRow::ColourCorrection => {
+                self.quick_value(self.playing_row(row))
+            }
             QuickRow::FastForward => QuickValue::speed(self.state.ff_speed),
             QuickRow::FastForwardSound => Some(QuickValue::flag(self.state.ff_sound)),
             QuickRow::GbaColourCorrection => {
@@ -719,8 +759,6 @@ impl App {
             | QuickRow::ExitGame
             | QuickRow::PlayScreen
             | QuickRow::PlayGameplay
-            | QuickRow::Shader
-            | QuickRow::ColourCorrection
             | QuickRow::Palette => None,
         }
     }
@@ -1512,6 +1550,11 @@ impl App {
         if self.game_menu.is_some() {
             return self.game_menu_input(action);
         }
+        if let (Some(row), Phase::Playing { .. }) = (self.in_game_menu, &self.phase) {
+            if action != Action::Eject {
+                return self.in_game_menu_input(row, action);
+            }
+        }
         let now = self.now();
         match self.phase {
             Phase::Shelf => match action {
@@ -1547,6 +1590,7 @@ impl App {
                 }
                 Action::Eject => self.eject(),
                 Action::GameMenu => self.game_menu_shortcut(),
+                Action::QuickMenu => self.in_game_menu = Some(QuickRow::PLAY[0]),
                 Action::Polaroids => self.open_polaroids(),
                 Action::SaveState => self.save_state(),
                 Action::LoadState => self.load_newest(),
@@ -1598,6 +1642,43 @@ impl App {
         self.phase = Phase::QuickMenu { row };
     }
 
+    fn in_game_menu_input(&mut self, row: QuickRow, action: Action) {
+        let hidden = self.in_game_hidden();
+        self.in_game_menu = match action {
+            Action::GbaDown(Btn::Up) => Some(row.up(hidden)),
+            Action::GbaDown(Btn::Down) => Some(row.down(hidden)),
+            Action::GbaDown(Btn::Left) => return self.change_setting(row, false),
+            Action::GbaDown(Btn::Right) => return self.change_setting(row, true),
+            Action::GbaDown(Btn::A) => return self.open_in_game_row(row),
+            Action::GbaDown(Btn::B) => row.parent_in_game(),
+            Action::QuickMenu => None,
+            Action::Polaroids => return self.open_states(),
+            _ => return,
+        };
+    }
+
+    fn open_in_game_row(&mut self, row: QuickRow) {
+        match row {
+            QuickRow::Resume => self.in_game_menu = None,
+            QuickRow::States => self.open_states(),
+            QuickRow::ExitGame => self.eject(),
+            _ => {
+                if let Some(child) = row.child() {
+                    self.in_game_menu = Some(child);
+                }
+            }
+        }
+    }
+
+    fn open_states(&mut self) {
+        self.in_game_menu = None;
+        self.open_polaroids();
+        match self.phase {
+            Phase::Polaroids { .. } => self.states_from_menu = true,
+            _ => self.in_game_menu = Some(QuickRow::States),
+        }
+    }
+
     fn open_quick_row(&mut self, row: QuickRow) {
         match row {
             QuickRow::DateTime => {
@@ -1640,6 +1721,17 @@ impl App {
     }
 
     fn change_setting(&mut self, row: QuickRow, right: bool) {
+        let row = self.playing_row(row);
+        if row == QuickRow::Palette {
+            let to = match right {
+                true => self.state.gb_palette.next(),
+                false => self.state.gb_palette.prev(),
+            };
+            self.state.gb_palette = to;
+            self.palette_pending = Some(to);
+            self.persist();
+            return;
+        }
         if row == QuickRow::Wallpaper {
             self.cycle_wallpaper(right);
             self.persist();
@@ -1754,6 +1846,18 @@ impl App {
     fn adjust(&mut self, action: Action) -> bool {
         if action == Action::MuteToggle {
             self.mute_toggle();
+            return true;
+        }
+        if self.in_game_menu.is_some()
+            && matches!(
+                action,
+                Action::ShaderNext
+                    | Action::ShaderPrev
+                    | Action::PaletteNext
+                    | Action::PalettePrev
+                    | Action::ColourCorrectionToggle
+            )
+        {
             return true;
         }
         if let Action::ShaderNext | Action::ShaderPrev = action {
@@ -2930,6 +3034,7 @@ impl App {
         if self.single_cart() {
             return self.refuse();
         }
+        self.in_game_menu = None;
         let cart = match &mut self.phase {
             Phase::Playing { cart } | Phase::Inserting { cart, .. } => std::mem::take(cart),
             _ => return,
@@ -3571,6 +3676,9 @@ impl App {
         let cart = std::mem::take(cart);
         self.polaroids = None;
         self.phase = Phase::Playing { cart };
+        if std::mem::take(&mut self.states_from_menu) {
+            self.in_game_menu = Some(QuickRow::States);
+        }
     }
 
     fn load_selected(&mut self) {
@@ -3581,6 +3689,7 @@ impl App {
             .map(|e| e.state.clone());
         let refused = state.map(|state| self.load_file(&state)) == Some(false);
         if !refused {
+            self.states_from_menu = false;
             self.close_polaroids();
         }
     }
