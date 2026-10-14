@@ -2204,6 +2204,7 @@ fn a_letter_jump_shows_the_letter_in_the_slot_and_fades_like_the_shelf_name() {
     );
 
     a.apply(Action::GbaDown(Btn::Down));
+    a.apply(Action::GbaUp(Btn::Down));
     assert_eq!(a.slot_text().as_deref(), Some("B"));
     a.set_shelf_platform_face(face, 20);
     a.update(1.0 / 60.0);
@@ -2213,7 +2214,9 @@ fn a_letter_jump_shows_the_letter_in_the_slot_and_fades_like_the_shelf_name() {
     assert_eq!(slot_text_alpha(&a, face), 0.0, "the letter never faded");
 
     a.apply(Action::GbaDown(Btn::Left));
+    a.apply(Action::GbaUp(Btn::Left));
     a.apply(Action::GbaDown(Btn::Down));
+    a.apply(Action::GbaUp(Btn::Down));
     assert_eq!(a.slot_text().as_deref(), Some("B"));
     a.update(1.0 / 60.0);
     a.update(0.5);

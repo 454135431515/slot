@@ -13,11 +13,12 @@ use slot_store::{
 };
 use slot_ui::{
     board_from, board_zoom, draw_empty_slot, draw_footer, draw_ground, draw_slot_name,
-    draw_sticker, ease, footer_ink, grown, lid_at, lid_from, lift_of, on_board, shelf_cart_at,
-    ClockPicker, Draw, FfState, GbShell, Hud, HudKind, Icon, LinkBadge, Millis, Placed, Polaroids,
-    PowerChoice, QuickMenu, QuickMenuFaces, QuickRow, QuickValue, Refusal, Shelf, SlotChrome,
-    TexId, Toast, BOARD_W, BOARD_X, CART_W, CHIP_H, CHIP_U, CHIP_V, CHIP_W, FOOTER_Y, HINT_EDGE,
-    HINT_H, HOP_LIFT, SHADOW_H, SHADOW_W, SOCKET_H, SOCKET_U, SOCKET_V, SOCKET_W, TURN_PAD,
+    draw_sticker, ease, footer_ink, grown, lid_at, lid_from, lift_of, on_board, repeat_gap,
+    shelf_cart_at, ClockPicker, Draw, FfState, GbShell, Hud, HudKind, Icon, LinkBadge, Millis,
+    Placed, Polaroids, PowerChoice, QuickMenu, QuickMenuFaces, QuickRow, QuickValue, Refusal,
+    Shelf, SlotChrome, TexId, Toast, BOARD_W, BOARD_X, CART_W, CHIP_H, CHIP_U, CHIP_V, CHIP_W,
+    FOOTER_Y, HINT_EDGE, HINT_H, HOP_LIFT, REPEAT_DELAY_MS, SHADOW_H, SHADOW_W, SOCKET_H, SOCKET_U,
+    SOCKET_V, SOCKET_W, TURN_PAD,
 };
 
 use crate::audio::Sfx;
@@ -266,6 +267,7 @@ pub struct App {
     shelf_at: usize,
     orphaned: Vec<TexId>,
     play_held: Option<Millis>,
+    held_dir: Option<(Btn, Millis, usize)>,
     refusal: Option<Refusal>,
     refused_from: Option<f32>,
     alert_face: Option<TexId>,
@@ -404,6 +406,7 @@ impl App {
             shelf_at,
             orphaned: Vec::new(),
             play_held: None,
+            held_dir: None,
             refusal: None,
             refused_from: None,
             alert_face: None,
@@ -566,6 +569,53 @@ impl App {
         self.slot_letter = None;
         self.shelf_named = None;
         self.name_pending = true;
+    }
+
+    fn track_held_dir(&mut self, action: Action) {
+        match action {
+            Action::GbaDown(b @ (Btn::Up | Btn::Down | Btn::Left | Btn::Right)) => {
+                if self.held_dir.map(|(held, ..)| held) != Some(b) {
+                    self.held_dir = Some((b, self.now() + REPEAT_DELAY_MS, 0));
+                }
+            }
+            Action::GbaUp(b) if self.held_dir.is_some_and(|(held, ..)| held == b) => {
+                self.held_dir = None;
+            }
+            _ => {}
+        }
+    }
+
+    fn repeat_held_dir(&mut self) {
+        let Some((btn, due, fired)) = self.held_dir else {
+            return;
+        };
+        if self.now() < due {
+            return;
+        }
+        if !self.repeats(btn) {
+            self.held_dir = None;
+            return;
+        }
+        self.held_dir = Some((btn, self.now() + repeat_gap(fired), fired + 1));
+        self.apply(Action::GbaDown(btn));
+    }
+
+    fn repeats(&self, btn: Btn) -> bool {
+        let vertical = matches!(btn, Btn::Up | Btn::Down);
+        if self.power_menu.is_some() {
+            return vertical;
+        }
+        if self.game_menu.is_some() {
+            return false;
+        }
+        match self.phase {
+            Phase::SetClock { .. } => true,
+            Phase::QuickMenu { .. } => vertical,
+            Phase::Shelf => vertical && self.core_picker.is_none(),
+            Phase::Polaroids { .. } => !vertical,
+            Phase::Playing { .. } => vertical && self.in_game_menu.is_some(),
+            _ => false,
+        }
     }
 
     fn jump_letter(&mut self, dir: i32) {
@@ -1494,6 +1544,7 @@ impl App {
     }
 
     pub fn apply(&mut self, action: Action) {
+        self.track_held_dir(action);
         if self.power_menu.is_some() {
             match action {
                 Action::LidClose => return self.doze(),
@@ -2180,6 +2231,7 @@ impl App {
 
     fn timers(&mut self) {
         self.play_hold();
+        self.repeat_held_dir();
         let offer = self.undo_label();
         if let Some(p) = &mut self.polaroids {
             p.set_undo(offer);

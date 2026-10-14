@@ -77,7 +77,7 @@ pub use quick_menu::{
 };
 pub use rebuild::{rebuild_count_face, rebuild_title_face, RebuildScreen};
 pub use refusal::Refusal;
-pub use shelf::{foot_y, rest_y, set_shelf_slack, Shelf};
+pub use shelf::{foot_y, repeat_gap, rest_y, set_shelf_slack, Shelf, REPEAT_DELAY_MS};
 pub use shell::{
     gb_plastics, gb_table_shells, gba_plastics, gba_shell_for,
     lookup_order_is_exact_then_family_then_default, shell_for, shell_presets, table_keys, Finish,

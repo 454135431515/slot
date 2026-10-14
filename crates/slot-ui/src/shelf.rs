@@ -45,8 +45,12 @@ const PART: f32 = 130.0;
 
 const SLOTS: i32 = 3;
 
-const REPEAT_DELAY_MS: Millis = 400;
+pub const REPEAT_DELAY_MS: Millis = 400;
 const REPEAT_MS: [Millis; 4] = [110, 85, 65, 50];
+
+pub fn repeat_gap(fired: usize) -> Millis {
+    REPEAT_MS[fired.min(REPEAT_MS.len() - 1)]
+}
 
 pub struct Shelf {
     pub carts: Vec<Cart>,
@@ -328,8 +332,7 @@ impl Shelf {
             return;
         }
         self.step(by);
-        let rate = REPEAT_MS[fired.min(REPEAT_MS.len() - 1)];
-        self.held = Some((by, now + rate, fired + 1));
+        self.held = Some((by, now + repeat_gap(fired), fired + 1));
     }
 
     fn step(&mut self, by: i32) {
