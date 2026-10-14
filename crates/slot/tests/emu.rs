@@ -1089,3 +1089,18 @@ fn waiting_on_an_unlocked_worker_does_not_block() {
         "the wait blocked"
     );
 }
+
+#[test]
+fn a_refresh_redraws_a_paused_core_without_moving_it() {
+    let emu = spawn();
+    emu.set_speed(Speed::Paused);
+    std::thread::sleep(Duration::from_millis(100));
+    let held = frame_count(&emu);
+    let shown = emu.published_count();
+    emu.refresh();
+    assert!(
+        wait_for(|| emu.published_count() > shown),
+        "the refresh never published a frame"
+    );
+    assert_eq!(frame_count(&emu), held, "the refresh moved the game on");
+}
