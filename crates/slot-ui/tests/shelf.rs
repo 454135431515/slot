@@ -1079,3 +1079,37 @@ fn only_a_clear_cart_has_anything_behind_its_plastic() {
     let s = Shelf::new(vec![cart("Game", "BPEE")]);
     assert_eq!(s.behind("Nothing"), [None, None]);
 }
+
+#[test]
+fn a_pak_is_classed_when_it_is_drawn_not_when_the_shelf_is_built() {
+    let d = tempfile::tempdir().expect("tempdir");
+    let carts: Vec<Cart> = ["Front", "Clear"]
+        .iter()
+        .map(|stem| Cart {
+            platform: Platform::Gbc,
+            stem: (*stem).into(),
+            rom: d.path().join(format!("{stem}.gbc")),
+            label: None,
+            code: String::new(),
+            shell: None,
+            title: stem.to_uppercase(),
+        })
+        .collect();
+    let mut s = Shelf::new(carts.clone());
+    let mut rom = vec![0u8; 0x150];
+    rom[0x143] = 0xc0;
+    std::fs::write(&carts[1].rom, rom).expect("write rom");
+    settle(&mut s);
+    s.set_faces(vec![TexId::from_raw(20), TexId::from_raw(21)]);
+    let notched = TexId::from_raw(90);
+    let rounded = TexId::from_raw(91);
+    s.set_gb_shadow(GbShell::Notched, notched);
+    s.set_gb_shadow(GbShell::Rounded, rounded);
+    let mut out = Vec::new();
+    s.draw_row(Some("Front"), 0.0, 0.3, 1.0, &mut out);
+    assert!(
+        out.iter()
+            .any(|d| matches!(*d, Draw::Tex { tex, .. } if tex == rounded)),
+        "the colour-only pak was classed before its ROM could be read"
+    );
+}

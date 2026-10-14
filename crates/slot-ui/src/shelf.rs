@@ -1,6 +1,7 @@
 use slot_gfx::{Draw, TexId, OUT_H, OUT_W};
 use slot_store::Cart;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::OnceLock;
 
 use crate::board::{board_in, Placed};
 use crate::cart::{cart_box, gb_shell_of, is_clear, label_colour, label_text, CART_H, CART_W};
@@ -59,8 +60,8 @@ pub struct Shelf {
     backing: Option<TexId>,
     gb_backing: Option<TexId>,
     gbc_backing: Option<TexId>,
-    shells: Vec<Option<GbShell>>,
-    clears: Vec<bool>,
+    shells: Vec<OnceLock<Option<GbShell>>>,
+    clears: Vec<OnceLock<bool>>,
     ride: f32,
     vel: f32,
     held: Option<(i32, Millis, usize)>,
@@ -69,8 +70,8 @@ pub struct Shelf {
 impl Shelf {
     pub fn new(carts: Vec<Cart>) -> Self {
         Shelf {
-            shells: carts.iter().map(gb_shell_of).collect(),
-            clears: carts.iter().map(is_clear).collect(),
+            shells: carts.iter().map(|_| OnceLock::new()).collect(),
+            clears: carts.iter().map(|_| OnceLock::new()).collect(),
             faces: vec![None; carts.len()],
             interiors: vec![None; carts.len()],
             carts,
@@ -88,6 +89,20 @@ impl Shelf {
         }
     }
 
+    fn shell(&self, i: usize) -> Option<GbShell> {
+        let (Some(cell), Some(cart)) = (self.shells.get(i), self.carts.get(i)) else {
+            return None;
+        };
+        *cell.get_or_init(|| gb_shell_of(cart))
+    }
+
+    fn clear(&self, i: usize) -> bool {
+        let (Some(cell), Some(cart)) = (self.clears.get(i), self.carts.get(i)) else {
+            return false;
+        };
+        *cell.get_or_init(|| is_clear(cart))
+    }
+
     pub fn restock(&mut self, carts: Vec<Cart>) -> Vec<TexId> {
         let old: Vec<TexId> = self
             .faces
@@ -95,8 +110,8 @@ impl Shelf {
             .chain(self.interiors.drain(..))
             .flatten()
             .collect();
-        self.shells = carts.iter().map(gb_shell_of).collect();
-        self.clears = carts.iter().map(is_clear).collect();
+        self.shells = carts.iter().map(|_| OnceLock::new()).collect();
+        self.clears = carts.iter().map(|_| OnceLock::new()).collect();
         self.faces = vec![None; carts.len()];
         self.interiors = vec![None; carts.len()];
         self.carts = carts;
@@ -186,10 +201,10 @@ impl Shelf {
         let Some(i) = self.carts.iter().position(|c| c.stem == stem) else {
             return [None, None];
         };
-        if !self.clears.get(i).copied().unwrap_or(false) || self.face(i).is_none() {
+        if !self.clear(i) || self.face(i).is_none() {
             return [None, None];
         }
-        let board = match self.shells.get(i).copied().flatten() {
+        let board = match self.shell(i) {
             None => self.backing,
             Some(GbShell::Notched) => self.gb_backing,
             Some(GbShell::Rounded) => self.gbc_backing,
@@ -401,7 +416,7 @@ impl Shelf {
             let x = x + shake;
             let y = foot_y(ch as f32) - h;
             if alpha < 1.0 {
-                let backing = match self.shells.get(i).copied().flatten() {
+                let backing = match self.shell(i) {
                     None => self.shadow,
                     Some(GbShell::Notched) => self.gb_shadow,
                     Some(GbShell::Rounded) => self.gbc_shadow,
@@ -417,13 +432,13 @@ impl Shelf {
                     });
                 }
             }
-            if self.clears.get(i).copied().unwrap_or(false) && self.face(i).is_some() {
-                let board = match self.shells.get(i).copied().flatten() {
+            if self.clear(i) && self.face(i).is_some() {
+                let board = match self.shell(i) {
                     None => self.backing,
                     Some(GbShell::Notched) => self.gb_backing,
                     Some(GbShell::Rounded) => self.gbc_backing,
                 };
-                let gba = self.shells.get(i).copied().flatten().is_none();
+                let gba = self.shell(i).is_none();
                 // A GBA cart's board and back shell fill the cart's box, exactly where the
                 // picker lifts them from; a Game Boy pak's backing fills its box.
                 let Placed {
