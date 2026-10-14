@@ -143,3 +143,54 @@ fn locked_fast_forward_pauses_behind_the_menu_and_comes_back_locked() {
         "fast forward came back unlocked"
     );
 }
+
+#[test]
+fn a_double_tap_of_menu_in_game_opens_the_switcher_and_b_goes_back_to_the_game() {
+    let (mut s, _d, mut now) = session_playing();
+    assert!(
+        runs_at(&mut s, &mut now, Speed::Normal),
+        "the game never ran"
+    );
+    s.app_mut().apply(slot_input::Action::SaveState);
+    tap(&mut s, &mut now, Btn::Menu);
+    tap(&mut s, &mut now, Btn::Menu);
+    assert!(
+        matches!(s.app().phase(), Phase::Polaroids { .. }),
+        "{:?}",
+        s.app().phase()
+    );
+    for _ in 0..30 {
+        step(&mut s, &mut now, &[]);
+    }
+    tap(&mut s, &mut now, Btn::B);
+    assert!(matches!(s.app().phase(), Phase::Playing { .. }));
+    assert_eq!(s.app().in_game_menu(), None);
+    assert!(
+        runs_at(&mut s, &mut now, Speed::Normal),
+        "the game stayed paused"
+    );
+}
+
+#[test]
+fn fast_forward_cannot_be_locked_from_inside_the_menu() {
+    let (mut s, _d, mut now) = session_playing();
+    assert!(
+        runs_at(&mut s, &mut now, Speed::Normal),
+        "the game never ran"
+    );
+    open_menu(&mut s, &mut now);
+    tap(&mut s, &mut now, Btn::R2);
+    tap(&mut s, &mut now, Btn::R2);
+    tap(&mut s, &mut now, Btn::B);
+    assert_eq!(s.app().in_game_menu(), None);
+    assert!(runs_at(&mut s, &mut now, Speed::Normal));
+    for _ in 0..20 {
+        step(&mut s, &mut now, &[]);
+        std::thread::sleep(Duration::from_millis(1));
+        assert_eq!(
+            s.observed_speed(),
+            Some(Speed::Normal),
+            "R2 pressed in the menu fast forwarded the game on resume"
+        );
+    }
+}

@@ -161,10 +161,14 @@ impl Session {
 
     pub fn feed(&mut self, events: impl IntoIterator<Item = RawEvent>, now: Millis) {
         let mut actions = Vec::new();
+        let latched = self.gestures.ff_latched();
         for ev in events {
             actions.extend(self.gestures.feed(ev, now));
         }
         actions.extend(self.gestures.tick(now));
+        if !latched && self.app.in_game_menu().is_some() {
+            actions.extend(self.gestures.drop_ff_latch());
+        }
         for action in actions {
             self.act(action);
         }
@@ -194,10 +198,11 @@ impl Session {
         if trace() {
             eprintln!("slot: {action:?} in {:?}", self.app.phase());
         }
+        let menu_open = self.app.in_game_menu().is_some();
         match action {
-            Action::RewindStart => self.rewinding = true,
+            Action::RewindStart if !menu_open => self.rewinding = true,
             Action::RewindStop => self.rewinding = false,
-            Action::FfStart => self.fast = true,
+            Action::FfStart if !menu_open => self.fast = true,
             Action::FfStop => self.fast = false,
             _ => {}
         }

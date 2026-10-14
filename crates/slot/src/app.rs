@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use slot_gfx::{OUT_H, OUT_W};
-use slot_input::{Action, Btn, MUTE_CHORD_MS};
+use slot_input::{Action, Btn, MENU_DOUBLE_TAP_MS, MUTE_CHORD_MS};
 use slot_power::{Battery, Charge, LedState, LidPolicy, Power};
 use slot_retro::LinkChannel;
 use slot_store::{
@@ -327,6 +327,7 @@ pub struct App {
     quick_palette_faces: Option<[(TexId, u32, u32); 2]>,
     in_game_menu: Option<QuickRow>,
     states_from_menu: bool,
+    menu_tap: Option<(Millis, Option<QuickRow>)>,
     sticker_face: Option<TexId>,
     ground: Option<TexId>,
     blur: Option<TexId>,
@@ -466,6 +467,7 @@ impl App {
             quick_palette_faces: None,
             in_game_menu: None,
             states_from_menu: false,
+            menu_tap: None,
             sticker_face: None,
             ground: None,
             blur: None,
@@ -1641,8 +1643,8 @@ impl App {
                 }
                 Action::Eject => self.eject(),
                 Action::GameMenu => self.game_menu_shortcut(),
-                Action::QuickMenu => self.in_game_menu = Some(QuickRow::PLAY[0]),
-                Action::Polaroids => self.open_polaroids(),
+                Action::QuickMenu => self.tap_in_game_menu(Some(QuickRow::PLAY[0])),
+                Action::Polaroids => self.double_tap_states(),
                 Action::SaveState => self.save_state(),
                 Action::LoadState => self.load_newest(),
                 Action::RewindStart if !self.may_rewind() => self.refuse(),
@@ -1702,8 +1704,8 @@ impl App {
             Action::GbaDown(Btn::Right) => return self.change_setting(row, true),
             Action::GbaDown(Btn::A) => return self.open_in_game_row(row),
             Action::GbaDown(Btn::B) => row.parent_in_game(),
-            Action::QuickMenu => None,
-            Action::Polaroids => return self.open_states(),
+            Action::QuickMenu => return self.tap_in_game_menu(None),
+            Action::Polaroids => return self.double_tap_states(),
             _ => return,
         };
     }
@@ -1718,6 +1720,23 @@ impl App {
                     self.in_game_menu = Some(child);
                 }
             }
+        }
+    }
+
+    fn tap_in_game_menu(&mut self, to: Option<QuickRow>) {
+        self.menu_tap = Some((self.now(), self.in_game_menu));
+        self.in_game_menu = to;
+    }
+
+    fn double_tap_states(&mut self) {
+        if let Some((at, before)) = self.menu_tap.take() {
+            if self.now().saturating_sub(at) <= MENU_DOUBLE_TAP_MS {
+                self.in_game_menu = before;
+            }
+        }
+        match self.in_game_menu {
+            Some(_) => self.open_states(),
+            None => self.open_polaroids(),
         }
     }
 
@@ -2608,7 +2627,9 @@ impl App {
                 return;
             }
         }
-        if let (Some(row), Phase::Playing { .. }) = (self.in_game_menu, &self.phase) {
+        if let (Some(row), Phase::Playing { .. }, true) =
+            (self.in_game_menu, &self.phase, self.screen >= 1.0)
+        {
             QuickMenu {
                 row,
                 hidden: self.in_game_hidden(),
@@ -3165,6 +3186,9 @@ impl App {
             Phase::Playing { cart } | Phase::Polaroids { cart } => Some(std::mem::take(cart)),
             _ => None,
         };
+        if std::mem::take(&mut self.states_from_menu) {
+            self.in_game_menu = Some(QuickRow::States);
+        }
         self.polaroids = None;
         self.phase = Phase::Doze { cart };
         self.dozed_at = self.now();

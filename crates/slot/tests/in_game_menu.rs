@@ -172,13 +172,91 @@ fn a_double_tap_inside_the_menu_opens_states() {
 }
 
 #[test]
-fn the_switcher_opened_by_double_tap_closes_back_to_the_game() {
+fn a_double_tap_in_game_opens_the_switcher_and_b_goes_back_to_the_game() {
     let (_d, mut a) = playing();
     a.apply(Action::SaveState);
+    a.apply(Action::QuickMenu);
+    a.apply(Action::Polaroids);
+    assert!(matches!(a.phase(), Phase::Polaroids { .. }));
+    press(&mut a, Btn::B);
+    assert!(matches!(a.phase(), Phase::Playing { .. }));
+    assert_eq!(a.in_game_menu(), None);
+}
+
+#[test]
+fn a_refused_double_tap_in_game_leaves_the_game_playing() {
+    let (_d, mut a) = playing();
+    a.apply(Action::QuickMenu);
+    a.apply(Action::Polaroids);
+    assert!(matches!(a.phase(), Phase::Playing { .. }));
+    assert_eq!(a.in_game_menu(), None);
+}
+
+#[test]
+fn a_double_tap_inside_the_menu_comes_back_to_the_menu() {
+    let (_d, mut a) = playing();
+    a.apply(Action::SaveState);
+    go_to(&mut a, QuickRow::Settings);
+    a.apply(Action::QuickMenu);
+    a.apply(Action::Polaroids);
+    assert!(matches!(a.phase(), Phase::Polaroids { .. }));
+    press(&mut a, Btn::B);
+    assert_eq!(a.in_game_menu(), Some(QuickRow::States));
+}
+
+#[test]
+fn dozing_in_states_wakes_back_to_the_menu_and_forgets_it_after() {
+    let (_d, mut a) = playing();
+    a.apply(Action::SaveState);
+    go_to(&mut a, QuickRow::States);
+    press(&mut a, Btn::A);
+    assert!(matches!(a.phase(), Phase::Polaroids { .. }));
+    a.apply(Action::PowerTap);
+    assert!(matches!(a.phase(), Phase::Doze { .. }));
+    a.apply(Action::PowerTap);
+    assert!(matches!(a.phase(), Phase::Playing { .. }));
+    assert_eq!(a.in_game_menu(), Some(QuickRow::States));
+    press(&mut a, Btn::B);
+    for _ in 0..30 {
+        a.update(1.0 / 60.0);
+    }
+    a.apply(Action::QuickMenu);
     a.apply(Action::Polaroids);
     press(&mut a, Btn::B);
     assert!(matches!(a.phase(), Phase::Playing { .. }));
     assert_eq!(a.in_game_menu(), None);
+}
+
+#[test]
+fn the_menu_waits_for_the_screen_to_finish_powering_on() {
+    let (_d, mut a) = playing();
+    a.apply(Action::QuickMenu);
+    a.apply(Action::PowerTap);
+    for _ in 0..120 {
+        a.update(1.0 / 60.0);
+    }
+    a.apply(Action::PowerTap);
+    a.update(1.0 / 60.0);
+    assert!(matches!(a.phase(), Phase::Playing { .. }));
+    assert_eq!(a.in_game_menu(), Some(QuickRow::Resume));
+    assert!(a.screen_power() < 1.0, "the screen was already fully on");
+    let mut out = Vec::new();
+    a.draw(&mut out);
+    let scrim = out.iter().any(
+        |d| matches!(d, slot_ui::Draw::Rect { colour, .. } if (colour[3] - 0.65).abs() < 0.001),
+    );
+    assert!(
+        !scrim,
+        "the menu drew over the slot while the screen powered on"
+    );
+    for _ in 0..120 {
+        a.update(1.0 / 60.0);
+    }
+    let mut out = Vec::new();
+    a.draw(&mut out);
+    assert!(out.iter().any(|d| {
+        matches!(d, slot_ui::Draw::Rect { colour, .. } if (colour[3] - 0.65).abs() < 0.001)
+    }));
 }
 
 #[test]
