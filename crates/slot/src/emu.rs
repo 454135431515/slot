@@ -927,6 +927,8 @@ impl Worker {
             }
             Cmd::Refresh => match core.serialize() {
                 Ok(state) => {
+                    core.set_frame_skip(true);
+                    core.run_frame(ButtonMask(0));
                     core.set_frame_skip(false);
                     core.run_frame(ButtonMask(0));
                     self.publish(core.video_xrgb8888());
