@@ -205,3 +205,81 @@ fn a_game_in_a_native_frame_sits_where_the_framed_one_does() {
         "the strip under the game is not clear"
     );
 }
+
+fn strip_bezel(c: &mut Compositor) {
+    let mut rgba = vec![0u8; 640 * 480 * 4];
+    for y in 427..480 {
+        for x in 0..640 {
+            let o = (y * 640 + x) * 4;
+            rgba[o..o + 4].copy_from_slice(&[220, 30, 30, 255]);
+        }
+    }
+    c.set_bezel(640, 480, &rgba);
+}
+
+fn red_rows(panel: &[u8]) -> Vec<usize> {
+    (0..480)
+        .filter(|y| {
+            let o = (y * 640 + 320) * 4;
+            panel[o] > 200 && panel[o + 1] < 60
+        })
+        .collect()
+}
+
+#[test]
+fn a_native_frame_reaches_the_panel_one_to_one() {
+    let Some((_g, _s, mut c)) = compositor() else {
+        return;
+    };
+    c.fit((640, 480));
+    strip_bezel(&mut c);
+    c.set_overlay_slide(1.0);
+    c.begin_frame(Layout::Native);
+    c.draw_list(&[Draw::Rect {
+        x: 0.0,
+        y: 0.0,
+        w: 640.0,
+        h: 1.0,
+        colour: [1.0, 1.0, 1.0, 1.0],
+    }]);
+    let canvas = c.read_frame();
+    let panel = c.read_window((640, 480));
+    assert_eq!(
+        panel, canvas,
+        "the native frame was moved or scaled on its way out"
+    );
+    assert!(
+        red_rows(&panel).is_empty(),
+        "the overlay drew over a native frame"
+    );
+}
+
+#[test]
+fn the_overlay_fills_the_strip_when_up_and_drops_as_it_slides() {
+    let Some((_g, _s, mut c)) = compositor() else {
+        return;
+    };
+    c.fit((640, 480));
+    strip_bezel(&mut c);
+    for (slide, top) in [(1.0, Some(427)), (0.5, Some(453)), (0.0, None)] {
+        c.set_overlay_slide(slide);
+        c.begin_frame(Layout::Framed);
+        let panel = c.read_window((640, 480));
+        let rows = red_rows(&panel);
+        match top {
+            Some(top) => {
+                let first = *rows.first().expect("no overlay on the panel");
+                assert!(
+                    first.abs_diff(top) <= 1,
+                    "at slide {slide} the overlay starts at row {first}, not {top}"
+                );
+                assert_eq!(
+                    *rows.last().unwrap(),
+                    479,
+                    "the overlay does not reach the bottom"
+                );
+            }
+            None => assert!(rows.is_empty(), "the overlay shows at slide 0"),
+        }
+    }
+}

@@ -271,6 +271,43 @@ impl Compositor {
         top_down
     }
 
+    pub fn read_window(&mut self, window: (u32, u32)) -> Vec<u8> {
+        let (w, h) = window;
+        let tex = crate::gl::texture(w, h, gl::NEAREST, gl::CLAMP_TO_EDGE, gl::RGBA, None);
+        let mut fbo = 0;
+        unsafe {
+            gl::GenFramebuffers(1, &mut fbo);
+            gl::BindFramebuffer(gl::FRAMEBUFFER, fbo);
+            gl::FramebufferTexture2D(
+                gl::FRAMEBUFFER,
+                gl::COLOR_ATTACHMENT0,
+                gl::TEXTURE_2D,
+                tex,
+                0,
+            );
+        }
+        self.output(window, fbo);
+        let stride = w as usize * 4;
+        let mut buf = vec![0u8; stride * h as usize];
+        unsafe {
+            gl::BindFramebuffer(gl::FRAMEBUFFER, fbo);
+            gl::PixelStorei(gl::PACK_ALIGNMENT, 1);
+            gl::ReadPixels(
+                0,
+                0,
+                w as i32,
+                h as i32,
+                gl::RGBA,
+                gl::UNSIGNED_BYTE,
+                buf.as_mut_ptr() as *mut std::ffi::c_void,
+            );
+            gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+            gl::DeleteFramebuffers(1, &fbo);
+            gl::DeleteTextures(1, &tex);
+        }
+        buf.chunks_exact(stride).rev().flatten().copied().collect()
+    }
+
     pub fn begin_frame(&mut self, layout: Layout) {
         self.layout = layout;
         let size = if self.native() {
