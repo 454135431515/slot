@@ -341,9 +341,9 @@ impl QuickValue {
             QuickValue::Light => "Light",
             QuickValue::Show => "Show",
             QuickValue::Hide => "Hide",
-            QuickValue::Low => "Low",
-            QuickValue::Medium => "Medium",
-            QuickValue::High => "High",
+            QuickValue::Low => "25%",
+            QuickValue::Medium => "45%",
+            QuickValue::High => "65%",
         }
     }
 

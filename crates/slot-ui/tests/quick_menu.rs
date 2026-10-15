@@ -198,9 +198,9 @@ fn the_values_read_as_the_menu_prints_them() {
             "Light",
             "Show",
             "Hide",
-            "Low",
-            "Medium",
-            "High",
+            "25%",
+            "45%",
+            "65%",
         ]
     );
     assert_eq!(QuickValue::flag(true), QuickValue::On);
@@ -390,4 +390,12 @@ fn screen_rows_in_game_sit_in_a_panel_at_the_bottom() {
         "the panel starts at {shader}"
     );
     assert!(slot_ui::quick_row_top(QuickRow::FastForward, &[]) < shader);
+}
+
+#[test]
+fn the_wallpaper_tint_reads_as_how_much_it_darkens() {
+    assert_eq!(
+        [QuickValue::Low, QuickValue::Medium, QuickValue::High].map(QuickValue::text),
+        ["25%", "45%", "65%"]
+    );
 }
