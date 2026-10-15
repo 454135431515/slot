@@ -110,6 +110,8 @@ struct Clocks {
     battery_tex: Option<TexId>,
     platform: String,
     platform_tex: Option<TexId>,
+    title: String,
+    title_tex: Option<TexId>,
     ink: [u8; 3],
 }
 
@@ -889,6 +891,18 @@ fn sync_clock(app: &mut App, compositor: &mut Compositor, clocks: &mut Clocks) {
             let w = face.w;
             let id = upload(compositor, &mut clocks.platform_tex, face);
             app.set_shelf_platform_face(id, w);
+        }
+    }
+    let title_shown = app.title_text().unwrap_or_default();
+    if title_shown != clocks.title {
+        clocks.title = title_shown.clone();
+        if title_shown.is_empty() {
+            app.clear_shelf_title();
+        } else {
+            let face = word_ink(&title_shown, [0xff, 0xff, 0xff]);
+            let w = face.w;
+            let id = upload(compositor, &mut clocks.title_tex, face);
+            app.set_shelf_title_face(id, w);
         }
     }
     let battery_shown = app

@@ -368,6 +368,7 @@ pub struct App {
     hud_bolt: Option<TexId>,
     slot_faces: Option<(TexId, TexId)>,
     shelf_platform: slot_ui::Printed,
+    shelf_title: slot_ui::Printed,
     name_pending: bool,
     slot_letter: Option<char>,
     shelf_named: Option<Millis>,
@@ -512,6 +513,7 @@ impl App {
             hud_bolt: None,
             slot_faces: None,
             shelf_platform: slot_ui::Printed::default(),
+            shelf_title: slot_ui::Printed::default(),
             name_pending: false,
             slot_letter: None,
             shelf_named: None,
@@ -829,6 +831,11 @@ impl App {
             } else {
                 QuickValue::Hide
             }),
+            QuickRow::ShowTitles => Some(if self.state.show_titles {
+                QuickValue::Show
+            } else {
+                QuickValue::Hide
+            }),
             QuickRow::WallpaperTint => Some(match self.state.wallpaper_tint {
                 WallpaperTint::Off => QuickValue::Off,
                 WallpaperTint::Low => QuickValue::Low,
@@ -1057,6 +1064,33 @@ impl App {
             Some(letter) => Some(letter.to_string()),
             None => self.shelf_platform_name().map(str::to_string),
         }
+    }
+
+    pub fn title_text(&self) -> Option<String> {
+        if !self.state.show_titles {
+            return None;
+        }
+        let shelf = self.shelf();
+        shelf.carts.get(shelf.index).map(slot_ui::label_text)
+    }
+
+    pub fn set_shelf_title_face(&mut self, face: TexId, w: u32) {
+        self.shelf_title = slot_ui::Printed::new(face, w);
+    }
+
+    pub fn clear_shelf_title(&mut self) {
+        self.shelf_title = slot_ui::Printed::default();
+    }
+
+    fn title_alpha(&self) -> f32 {
+        if !self.state.show_titles || (self.name_pending && self.slot_text().is_some()) {
+            return 0.0;
+        }
+        let named = self.shelf_named.map(|at| self.now().saturating_sub(at));
+        if named.is_some_and(|t| t < SLOT_NAME_IN_MS + SLOT_NAME_HOLD_MS) {
+            return 0.0;
+        }
+        1.0 - self.slot_name_alpha() / SLOT_NAME_ALPHA
     }
 
     pub fn shelf_platform_name(&self) -> Option<&'static str> {
@@ -1845,6 +1879,7 @@ impl App {
             | QuickRow::Rumble
             | QuickRow::Theme
             | QuickRow::Recents
+            | QuickRow::ShowTitles
             | QuickRow::Wallpaper
             | QuickRow::WallpaperTint
             | QuickRow::Resume
@@ -1879,6 +1914,11 @@ impl App {
         if row == QuickRow::Recents {
             self.state.show_recents = !self.state.show_recents;
             self.restock_recents();
+            self.persist();
+            return;
+        }
+        if row == QuickRow::ShowTitles {
+            self.state.show_titles = !self.state.show_titles;
             self.persist();
             return;
         }
@@ -1938,6 +1978,7 @@ impl App {
             QuickRow::WallpaperTint => s.wallpaper_tint = s.wallpaper_tint.step(right),
             QuickRow::Wallpaper
             | QuickRow::Recents
+            | QuickRow::ShowTitles
             | QuickRow::DateTime
             | QuickRow::About
             | QuickRow::Screen
@@ -2730,6 +2771,7 @@ impl App {
                             self.slot_name_alpha(),
                             out,
                         );
+                        draw_slot_name(self.canvas(), self.shelf_title, self.title_alpha(), out);
                     }
                 }
                 draw_footer(

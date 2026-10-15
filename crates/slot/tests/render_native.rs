@@ -95,3 +95,47 @@ fn a_host_window_resized_to_4_by_3_lays_the_shelf_out_for_it() {
         "a 3:2 window kept the 4:3 layout"
     );
 }
+
+#[test]
+fn a_title_shows_under_the_cart_when_titles_are_on() {
+    let Ok(surface) = HeadlessSurface::new() else {
+        return;
+    };
+    let Ok(mut c) = Compositor::new(&surface) else {
+        return;
+    };
+    let d = tmp_root_with_carts(&["Pokemon - Emerald Version (USA, Europe)", "Zzz"]);
+    clocked(d.path());
+    let state = slot_store::read_slot_state(d.path());
+    slot_store::write_slot_state(
+        d.path(),
+        &slot_store::SlotState {
+            show_titles: true,
+            ..state
+        },
+    )
+    .unwrap();
+    let mut f = Frontend::boot(Box::new(SimPlatform::at(d.path().to_path_buf())));
+    f.upload_faces(&mut c);
+    f.upload_bezel(&mut c, (640, 480));
+    let mut input = Script(VecDeque::new());
+    for _ in 0..10 {
+        f.advance(&mut input);
+    }
+    assert_eq!(
+        f.app().title_text().as_deref(),
+        Some("Pokemon Emerald Version")
+    );
+    c.fit((640, 480));
+    f.compose(&mut c);
+    let frame = c.read_frame();
+    write_png("native-shelf-title", 640, 480, &frame);
+    let y = slot_ui::slot_name_y() as usize + 8;
+    let lit = (100..540)
+        .filter(|&x| {
+            let o = (y * 640 + x) * 4;
+            frame[o] > 200 && frame[o + 1] > 200 && frame[o + 2] > 200
+        })
+        .count();
+    assert!(lit > 20, "no title ink under the cart: {lit} white pixels");
+}

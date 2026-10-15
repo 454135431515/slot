@@ -103,6 +103,7 @@ fn the_rows_run_in_the_order_the_user_chose() {
             "Wallpaper Tint",
             "Theme",
             "Recents",
+            "Show Titles",
             "Date & Time"
         ]
     );
@@ -398,4 +399,14 @@ fn the_wallpaper_tint_reads_as_how_much_it_darkens() {
         [QuickValue::Low, QuickValue::Medium, QuickValue::High].map(QuickValue::text),
         ["25%", "45%", "65%"]
     );
+}
+
+#[test]
+fn show_titles_sits_under_recents_on_the_general_page() {
+    let at = |r: QuickRow| QuickRow::GENERAL.iter().position(|g| *g == r);
+    assert_eq!(
+        at(QuickRow::ShowTitles),
+        at(QuickRow::Recents).map(|i| i + 1)
+    );
+    assert_eq!(QuickRow::ShowTitles.parent(), Some(QuickRow::General));
 }

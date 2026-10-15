@@ -26,6 +26,7 @@ pub enum QuickRow {
     Wallpaper,
     General,
     Recents,
+    ShowTitles,
     WallpaperTint,
     GbcShader,
     GbcColourCorrection,
@@ -41,7 +42,7 @@ pub enum QuickRow {
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 32] = [
+    pub const ALL: [QuickRow; 33] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Screen,
@@ -62,6 +63,7 @@ impl QuickRow {
         QuickRow::Wallpaper,
         QuickRow::General,
         QuickRow::Recents,
+        QuickRow::ShowTitles,
         QuickRow::WallpaperTint,
         QuickRow::GbcShader,
         QuickRow::GbcColourCorrection,
@@ -83,11 +85,12 @@ impl QuickRow {
         QuickRow::About,
     ];
 
-    pub const GENERAL: [QuickRow; 5] = [
+    pub const GENERAL: [QuickRow; 6] = [
         QuickRow::Wallpaper,
         QuickRow::WallpaperTint,
         QuickRow::Theme,
         QuickRow::Recents,
+        QuickRow::ShowTitles,
         QuickRow::DateTime,
     ];
 
@@ -150,7 +153,8 @@ impl QuickRow {
             | QuickRow::WallpaperTint
             | QuickRow::DateTime
             | QuickRow::Theme
-            | QuickRow::Recents => &QuickRow::GENERAL,
+            | QuickRow::Recents
+            | QuickRow::ShowTitles => &QuickRow::GENERAL,
             QuickRow::Resume | QuickRow::States | QuickRow::Settings | QuickRow::ExitGame => {
                 &QuickRow::PLAY
             }
@@ -235,6 +239,7 @@ impl QuickRow {
             QuickRow::Wallpaper => "Wallpaper",
             QuickRow::General => "General",
             QuickRow::Recents => "Recents",
+            QuickRow::ShowTitles => "Show Titles",
             QuickRow::WallpaperTint => "Wallpaper Tint",
             QuickRow::Resume => "Resume",
             QuickRow::States => "States",

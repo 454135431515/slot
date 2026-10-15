@@ -181,6 +181,7 @@ pub struct SlotState {
     pub wallpaper: WallpaperPick,
     pub wallpaper_tint: WallpaperTint,
     pub show_recents: bool,
+    pub show_titles: bool,
     pub recents: Vec<Recent>,
     pub favorites: Vec<Recent>,
 }
@@ -297,6 +298,7 @@ impl Default for SlotState {
             wallpaper: WallpaperPick::Default,
             wallpaper_tint: WallpaperTint::Off,
             show_recents: false,
+            show_titles: false,
             recents: Vec::new(),
             favorites: Vec::new(),
         }
@@ -385,6 +387,7 @@ pub fn write_slot_state(root: &Path, s: &SlotState) -> std::io::Result<()> {
     text.push_str(&format!("shader_gbc={}\n", s.shader_gbc.name()));
     text.push_str(&format!("wallpaper_tint={}\n", s.wallpaper_tint.key()));
     text.push_str(&format!("show_recents={}\n", s.show_recents as u8));
+    text.push_str(&format!("show_titles={}\n", s.show_titles as u8));
     atomic_write(&state_path(root), text.as_bytes())?;
     write_list(root, RECENTS_FILE, &s.recents)?;
     write_list(root, FAVORITES_FILE, &s.favorites)
@@ -421,6 +424,7 @@ fn parse(text: &str) -> Option<SlotState> {
     let mut wallpaper = None;
     let mut wallpaper_tint = None;
     let mut show_recents = None;
+    let mut show_titles = None;
     for line in text.lines().filter(|l| !l.is_empty()) {
         let Some((key, value)) = line.split_once('=') else {
             continue;
@@ -454,6 +458,7 @@ fn parse(text: &str) -> Option<SlotState> {
             "wallpaper" => wallpaper = Some(WallpaperPick::parse(value)),
             "wallpaper_tint" => wallpaper_tint = WallpaperTint::parse(value),
             "show_recents" => show_recents = flag(value),
+            "show_titles" => show_titles = flag(value),
             "shader_gb" => shader_gb = Shader::parse(value).filter(|s| Shader::GB.contains(s)),
             "shader_gbc" => shader_gbc = Shader::parse(value).filter(|s| Shader::GB.contains(s)),
             _ => {}
@@ -498,6 +503,7 @@ fn parse(text: &str) -> Option<SlotState> {
         wallpaper: wallpaper.unwrap_or(fallback.wallpaper),
         wallpaper_tint: wallpaper_tint.unwrap_or(fallback.wallpaper_tint),
         show_recents: show_recents.unwrap_or(fallback.show_recents),
+        show_titles: show_titles.unwrap_or(fallback.show_titles),
         recents: Vec::new(),
         favorites: Vec::new(),
     })
