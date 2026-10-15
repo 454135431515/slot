@@ -122,7 +122,10 @@ fn the_in_game_menu_darkens_the_game_and_screen_leaves_it_bare() {
             .flat_map(|y| xs.clone().map(move |x| (x, y)))
             .filter(|&(x, y)| bright(at(&top, x, y)) > 600)
             .count();
-        assert!(ink > 20, "no {side} in the menu's corner: {ink} bright pixels");
+        assert!(
+            ink > 20,
+            "no {side} in the menu's corner: {ink} bright pixels"
+        );
     }
 
     let row = quick_row_top(QuickRow::Shader, f.app().in_game_hidden()) as usize;

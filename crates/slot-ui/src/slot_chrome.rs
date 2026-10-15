@@ -1,8 +1,5 @@
-use std::sync::OnceLock;
-
 use slot_gfx::{Draw, TexId, OUT_H, OUT_W};
 use slot_store::Cart;
-use slot_store::Theme;
 
 use crate::cart::{cart_box, label_colour, label_text, seated_box, SEATED_W};
 use crate::footer::Printed;
@@ -34,15 +31,10 @@ const RIM_W: f32 = 2.0;
 const CX: f32 = OUT_W as f32 / 2.0;
 const SCOOP_FLAT: f32 = 4.0;
 
-static THEME: OnceLock<Theme> = OnceLock::new();
-
-pub fn set_theme(theme: Theme) {
-    let _ = THEME.set(theme);
-}
-
-pub fn theme() -> &'static Theme {
-    THEME.get_or_init(Theme::default)
-}
+const HOUSING: [u8; 3] = [0x24, 0x24, 0x29];
+const RECESS: [u8; 3] = [0x1a, 0x1a, 0x1d];
+const OPENING: [u8; 3] = [0x05, 0x05, 0x08];
+const EDGE: [u8; 3] = [0x4d, 0x4d, 0x57];
 
 fn rgb(c: [u8; 3]) -> [f32; 4] {
     [
@@ -54,19 +46,19 @@ fn rgb(c: [u8; 3]) -> [f32; 4] {
 }
 
 pub fn housing() -> [f32; 4] {
-    rgb(theme().housing)
+    rgb(HOUSING)
 }
 
 pub fn opening() -> [f32; 4] {
-    rgb(theme().opening)
+    rgb(OPENING)
 }
 
 pub fn edge() -> [f32; 4] {
-    rgb(theme().edge)
+    rgb(EDGE)
 }
 
 pub fn recess() -> [f32; 4] {
-    rgb(theme().recess)
+    rgb(RECESS)
 }
 
 const LIP_Y: f32 = BAND_Y;
