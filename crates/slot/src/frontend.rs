@@ -414,6 +414,7 @@ impl Frontend {
     }
 
     pub fn upload_bezel(&mut self, compositor: &mut Compositor, panel: (u32, u32)) {
+        self.session.app_mut().set_panel(panel);
         if !slot_gfx::framed(panel) {
             return;
         }
@@ -488,7 +489,7 @@ impl Frontend {
         compositor.set_overlay_slide(self.session.app().overlay_slide());
         compositor.set_game_source_rect(self.session.app().source_rect());
         self.grab_link_shot(compositor);
-        compositor.begin_frame(slot_gfx::Layout::Framed);
+        compositor.begin_frame(self.session.app().layout());
         if self.draw_rebuild(compositor) {
             return;
         }
