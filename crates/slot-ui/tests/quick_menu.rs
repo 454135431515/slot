@@ -109,16 +109,19 @@ fn the_rows_run_in_the_order_the_user_chose() {
     );
     assert_eq!(
         QuickRow::SCREEN.map(QuickRow::label),
-        [
-            "GBA Shader",
-            "GBA Color Correction",
-            "GBC Shader",
-            "GBC Color Correction",
-            "GB Shader",
-            "GB Color Correction",
-            "GB Palettes",
-            "Bezels"
-        ]
+        ["Game Boy Advance", "Game Boy Color", "Game Boy"]
+    );
+    assert_eq!(
+        QuickRow::SCREEN_GBA.map(QuickRow::label),
+        ["Shader", "Color Correction", "Bezel"]
+    );
+    assert_eq!(
+        QuickRow::SCREEN_GBC.map(QuickRow::label),
+        ["Shader", "Color Correction", "Bezel"]
+    );
+    assert_eq!(
+        QuickRow::SCREEN_GB.map(QuickRow::label),
+        ["Shader", "Color Correction", "Palettes", "Bezel"]
     );
     assert_eq!(
         QuickRow::GAME.map(QuickRow::label),
@@ -147,7 +150,9 @@ fn the_rows_run_in_the_order_the_user_chose() {
             QuickRow::ExitGame,
             QuickRow::PlayScreen,
             QuickRow::PlayGameplay,
-            QuickRow::Bezels
+            QuickRow::ScreenGba,
+            QuickRow::ScreenGbc,
+            QuickRow::ScreenGb
         ]
     );
     for page in [
@@ -158,7 +163,9 @@ fn the_rows_run_in_the_order_the_user_chose() {
         &QuickRow::PLAY[..],
         &QuickRow::SETTINGS[..],
         &QuickRow::PLAY_SCREEN[..],
-        &QuickRow::BEZELS[..],
+        &QuickRow::SCREEN_GBA[..],
+        &QuickRow::SCREEN_GBC[..],
+        &QuickRow::SCREEN_GB[..],
     ] {
         for &row in page {
             assert_eq!(row.page(), page, "{row:?}");
@@ -383,16 +390,21 @@ fn a_hidden_palette_and_bezel_leave_two_screen_rows() {
 }
 
 #[test]
-fn bezels_open_a_page_of_gba_gbc_then_gb_under_screen() {
-    assert_eq!(QuickRow::Bezels.child(), Some(QuickRow::GbaBezel));
-    assert_eq!(
-        QuickRow::BEZELS.map(QuickRow::label),
-        ["GBA Bezel", "GBC Bezel", "GB Bezel"]
-    );
-    for row in QuickRow::BEZELS {
-        assert_eq!(row.parent(), Some(QuickRow::Bezels), "{row:?}");
+fn screen_opens_a_page_per_console_and_each_backs_out_to_its_console() {
+    assert_eq!(QuickRow::Screen.child(), Some(QuickRow::ScreenGba));
+    for (console, page) in [
+        (QuickRow::ScreenGba, &QuickRow::SCREEN_GBA[..]),
+        (QuickRow::ScreenGbc, &QuickRow::SCREEN_GBC[..]),
+        (QuickRow::ScreenGb, &QuickRow::SCREEN_GB[..]),
+    ] {
+        assert_eq!(console.parent(), Some(QuickRow::Screen));
+        assert_eq!(console.child(), Some(page[0]));
+        for &row in page {
+            assert_eq!(row.parent(), Some(console), "{row:?}");
+        }
     }
-    assert_eq!(QuickRow::Bezels.parent(), Some(QuickRow::Screen));
+    assert!(QuickRow::ScreenGb.centred());
+    assert!(!QuickRow::GbShader.centred());
 }
 
 #[test]

@@ -46,13 +46,15 @@ fn press(a: &mut App, btn: Btn) {
 
 fn open_at(a: &mut App, row: QuickRow) {
     a.apply(Action::QuickMenu);
-    let parent = row.parent();
-    for _ in 0..parent.unwrap_or(row).position(&[]) {
-        press(a, Btn::Down);
+    let mut path = vec![row];
+    while let Some(parent) = path.last().and_then(|r| r.parent()) {
+        path.push(parent);
     }
-    if parent.is_some() {
-        press(a, Btn::A);
-        for _ in 0..row.position(a.hidden_rows()) {
+    for (depth, step) in path.iter().rev().enumerate() {
+        if depth > 0 {
+            press(a, Btn::A);
+        }
+        for _ in 0..step.position(a.hidden_rows()) {
             press(a, Btn::Down);
         }
     }
@@ -378,16 +380,13 @@ fn screen_opens_a_page_of_its_own_and_b_comes_back_to_it() {
     let (_d, mut a, _) = on_carousel();
     open_at(&mut a, QuickRow::Screen);
     press(&mut a, Btn::A);
-    assert_eq!(a.quick_menu(), Some(QuickRow::GbaShader));
+    assert_eq!(a.quick_menu(), Some(QuickRow::ScreenGba));
     for want in [
-        QuickRow::GbaColourCorrection,
-        QuickRow::GbcShader,
-        QuickRow::GbcColourCorrection,
-        QuickRow::GbShader,
-        QuickRow::GbColourCorrection,
-        QuickRow::GbPalettes,
-        QuickRow::Bezels,
-        QuickRow::GbaShader,
+        QuickRow::ScreenGbc,
+        QuickRow::ScreenGb,
+        QuickRow::ScreenGba,
+        QuickRow::ScreenGbc,
+        QuickRow::ScreenGb,
     ] {
         press(&mut a, Btn::Down);
         assert_eq!(
@@ -396,6 +395,23 @@ fn screen_opens_a_page_of_its_own_and_b_comes_back_to_it() {
             "the page did not wrap on itself"
         );
     }
+    press(&mut a, Btn::A);
+    assert_eq!(a.quick_menu(), Some(QuickRow::GbShader));
+    for want in [
+        QuickRow::GbColourCorrection,
+        QuickRow::GbPalettes,
+        QuickRow::GbBezel,
+        QuickRow::GbShader,
+    ] {
+        press(&mut a, Btn::Down);
+        assert_eq!(
+            a.quick_menu(),
+            Some(want),
+            "the page did not wrap on itself"
+        );
+    }
+    press(&mut a, Btn::B);
+    assert_eq!(a.quick_menu(), Some(QuickRow::ScreenGb));
     press(&mut a, Btn::B);
     assert_eq!(a.quick_menu(), Some(QuickRow::Screen));
     press(&mut a, Btn::B);
@@ -428,10 +444,10 @@ fn each_platform_keeps_its_own_shader_wraps_and_starts_on_grid_and_simpletex() {
         );
     }
     assert_eq!(read_slot_state(d.path()).shader_gb, Shader::Simpletex);
-    for _ in QuickRow::GbaShader.position(&[])..QuickRow::GbShader.position(&[]) {
-        press(&mut a, Btn::Down);
+    while a.quick_menu().is_some() {
+        press(&mut a, Btn::B);
     }
-    assert_eq!(a.quick_menu(), Some(QuickRow::GbShader));
+    open_at(&mut a, QuickRow::GbShader);
     press(&mut a, Btn::Left);
     assert_eq!(read_slot_state(d.path()).shader_gb, Shader::Grid);
     assert_eq!(read_slot_state(d.path()).shader_gba, Shader::Off);
@@ -439,10 +455,10 @@ fn each_platform_keeps_its_own_shader_wraps_and_starts_on_grid_and_simpletex() {
         a.quick_value(QuickRow::GbcShader),
         Some(QuickValue::Simpletex)
     );
-    for _ in QuickRow::GbcShader.position(&[])..QuickRow::GbShader.position(&[]) {
-        press(&mut a, Btn::Up);
+    while a.quick_menu().is_some() {
+        press(&mut a, Btn::B);
     }
-    assert_eq!(a.quick_menu(), Some(QuickRow::GbcShader));
+    open_at(&mut a, QuickRow::GbcShader);
     press(&mut a, Btn::Right);
     let s = read_slot_state(d.path());
     assert_eq!(
@@ -839,12 +855,14 @@ fn no_row_in_hand_runs_its_arrows_into_its_label() {
         legend: [(id(400), 70), (id(401), 110), (id(402), 80), (id(403), 90)],
     });
     for page in [
-        &QuickRow::SCREEN[..],
+        &QuickRow::SCREEN_GBA[..],
+        &QuickRow::SCREEN_GBC[..],
+        &QuickRow::SCREEN_GB[..],
         &QuickRow::GAME[..],
         &QuickRow::GENERAL[..],
     ] {
         for &row in page {
-            if row.opens() {
+            if row.opens() || a.hidden_rows().contains(&row) {
                 continue;
             }
             open_at(&mut a, row);
@@ -1027,9 +1045,7 @@ fn a_wide_panel_offers_gb_and_gbc_frames_from_none_through_the_card() {
     std::fs::write(d.path().join("Bezels/GBC/Pocket.png"), b"png").unwrap();
     std::fs::write(d.path().join("Bezels/GBC/._Pocket.png"), b"no").unwrap();
     assert_eq!(a.resolved_bezel(Platform::Gbc), BezelPick::None);
-    open_at(&mut a, QuickRow::Bezels);
-    press(&mut a, Btn::A);
-    assert_eq!(a.quick_menu(), Some(QuickRow::GbcBezel));
+    open_at(&mut a, QuickRow::GbcBezel);
     for want in [
         BezelPick::Default,
         BezelPick::File("Pocket.png".into()),
@@ -1045,9 +1061,7 @@ fn a_wide_panel_offers_gb_and_gbc_frames_from_none_through_the_card() {
     );
     assert_eq!(a.resolved_bezel(Platform::Gb), BezelPick::None);
     press(&mut a, Btn::Down);
-    assert_eq!(a.quick_menu(), Some(QuickRow::GbBezel));
-    press(&mut a, Btn::Down);
-    assert_eq!(a.quick_menu(), Some(QuickRow::GbcBezel));
+    assert_eq!(a.quick_menu(), Some(QuickRow::GbcShader));
     assert!(!a.sp_frame());
 }
 
@@ -1063,15 +1077,16 @@ fn a_four_by_three_panel_keeps_ags_102_until_another_frame_is_picked() {
         );
     }
     assert!(a.sp_frame());
-    open_at(&mut a, QuickRow::Bezels);
-    press(&mut a, Btn::A);
-    assert_eq!(a.quick_menu(), Some(QuickRow::GbaBezel));
+    open_at(&mut a, QuickRow::GbaBezel);
     press(&mut a, Btn::Right);
     assert_eq!(a.resolved_bezel(Platform::Gba), BezelPick::None);
     assert!(!a.sp_frame());
     press(&mut a, Btn::Right);
     assert_eq!(a.resolved_bezel(Platform::Gba), BezelPick::Ags102);
-    press(&mut a, Btn::Down);
+    while a.quick_menu().is_some() {
+        press(&mut a, Btn::B);
+    }
+    open_at(&mut a, QuickRow::GbcBezel);
     press(&mut a, Btn::Left);
     assert_eq!(a.resolved_bezel(Platform::Gbc), BezelPick::Default);
     assert_eq!(read_slot_state(d.path()).bezel_gbc, BezelPick::Default);

@@ -39,15 +39,17 @@ pub enum QuickRow {
     Shader,
     ColourCorrection,
     Palette,
-    Bezels,
+    ScreenGba,
     GbBezel,
     GbcBezel,
     Bezel,
     GbaBezel,
+    ScreenGbc,
+    ScreenGb,
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 38] = [
+    pub const ALL: [QuickRow; 40] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Screen,
@@ -81,11 +83,13 @@ impl QuickRow {
         QuickRow::Shader,
         QuickRow::ColourCorrection,
         QuickRow::Palette,
-        QuickRow::Bezels,
+        QuickRow::ScreenGba,
         QuickRow::GbBezel,
         QuickRow::GbcBezel,
         QuickRow::Bezel,
         QuickRow::GbaBezel,
+        QuickRow::ScreenGbc,
+        QuickRow::ScreenGb,
     ];
 
     pub const MAIN: [QuickRow; 4] = [
@@ -104,18 +108,27 @@ impl QuickRow {
         QuickRow::DateTime,
     ];
 
-    pub const SCREEN: [QuickRow; 8] = [
+    pub const SCREEN: [QuickRow; 3] =
+        [QuickRow::ScreenGba, QuickRow::ScreenGbc, QuickRow::ScreenGb];
+
+    pub const SCREEN_GBA: [QuickRow; 3] = [
         QuickRow::GbaShader,
         QuickRow::GbaColourCorrection,
+        QuickRow::GbaBezel,
+    ];
+
+    pub const SCREEN_GBC: [QuickRow; 3] = [
         QuickRow::GbcShader,
         QuickRow::GbcColourCorrection,
+        QuickRow::GbcBezel,
+    ];
+
+    pub const SCREEN_GB: [QuickRow; 4] = [
         QuickRow::GbShader,
         QuickRow::GbColourCorrection,
         QuickRow::GbPalettes,
-        QuickRow::Bezels,
+        QuickRow::GbBezel,
     ];
-
-    pub const BEZELS: [QuickRow; 3] = [QuickRow::GbaBezel, QuickRow::GbcBezel, QuickRow::GbBezel];
 
     pub const GAME: [QuickRow; 7] = [
         QuickRow::FastForward,
@@ -149,15 +162,17 @@ impl QuickRow {
 
     pub fn page(self) -> &'static [QuickRow] {
         match self {
-            QuickRow::GbaShader
-            | QuickRow::GbShader
-            | QuickRow::GbcShader
-            | QuickRow::GbaColourCorrection
+            QuickRow::ScreenGba | QuickRow::ScreenGbc | QuickRow::ScreenGb => &QuickRow::SCREEN,
+            QuickRow::GbaShader | QuickRow::GbaColourCorrection | QuickRow::GbaBezel => {
+                &QuickRow::SCREEN_GBA
+            }
+            QuickRow::GbcShader | QuickRow::GbcColourCorrection | QuickRow::GbcBezel => {
+                &QuickRow::SCREEN_GBC
+            }
+            QuickRow::GbShader
             | QuickRow::GbColourCorrection
-            | QuickRow::GbcColourCorrection
             | QuickRow::GbPalettes
-            | QuickRow::Bezels => &QuickRow::SCREEN,
-            QuickRow::GbaBezel | QuickRow::GbBezel | QuickRow::GbcBezel => &QuickRow::BEZELS,
+            | QuickRow::GbBezel => &QuickRow::SCREEN_GB,
             QuickRow::FastForward
             | QuickRow::FastForwardSound
             | QuickRow::Rewind
@@ -184,12 +199,14 @@ impl QuickRow {
 
     pub fn parent(self) -> Option<QuickRow> {
         match self.page()[0] {
-            QuickRow::GbaShader => Some(QuickRow::Screen),
+            QuickRow::ScreenGba => Some(QuickRow::Screen),
+            QuickRow::GbaShader => Some(QuickRow::ScreenGba),
+            QuickRow::GbcShader => Some(QuickRow::ScreenGbc),
+            QuickRow::GbShader => Some(QuickRow::ScreenGb),
             QuickRow::FastForward => Some(QuickRow::Game),
             QuickRow::Wallpaper => Some(QuickRow::General),
             QuickRow::PlayScreen => Some(QuickRow::Settings),
             QuickRow::Shader => Some(QuickRow::PlayScreen),
-            QuickRow::GbaBezel => Some(QuickRow::Bezels),
             _ => None,
         }
     }
@@ -202,7 +219,13 @@ impl QuickRow {
     }
 
     pub fn centred(self) -> bool {
-        [&QuickRow::MAIN[..], &QuickRow::PLAY, &QuickRow::SETTINGS].contains(&self.page())
+        [
+            &QuickRow::MAIN[..],
+            &QuickRow::PLAY,
+            &QuickRow::SETTINGS,
+            &QuickRow::SCREEN,
+        ]
+        .contains(&self.page())
     }
 
     pub fn child(self) -> Option<QuickRow> {
@@ -213,7 +236,9 @@ impl QuickRow {
             QuickRow::Settings => Some(QuickRow::SETTINGS[0]),
             QuickRow::PlayScreen => Some(QuickRow::PLAY_SCREEN[0]),
             QuickRow::PlayGameplay => Some(QuickRow::GAME[0]),
-            QuickRow::Bezels => Some(QuickRow::BEZELS[0]),
+            QuickRow::ScreenGba => Some(QuickRow::SCREEN_GBA[0]),
+            QuickRow::ScreenGbc => Some(QuickRow::SCREEN_GBC[0]),
+            QuickRow::ScreenGb => Some(QuickRow::SCREEN_GB[0]),
             _ => None,
         }
     }
@@ -241,17 +266,17 @@ impl QuickRow {
             QuickRow::Rumble => "Rumble",
             QuickRow::DateTime => "Date & Time",
             QuickRow::About => "About",
-            QuickRow::GbaShader => "GBA Shader",
-            QuickRow::GbShader => "GB Shader",
-            QuickRow::GbcShader => "GBC Shader",
-            QuickRow::GbaColourCorrection => "GBA Color Correction",
-            QuickRow::GbColourCorrection => "GB Color Correction",
-            QuickRow::GbcColourCorrection => "GBC Color Correction",
+            QuickRow::GbaShader => "Shader",
+            QuickRow::GbShader => "Shader",
+            QuickRow::GbcShader => "Shader",
+            QuickRow::GbaColourCorrection => "Color Correction",
+            QuickRow::GbColourCorrection => "Color Correction",
+            QuickRow::GbcColourCorrection => "Color Correction",
             QuickRow::Game => "Gameplay",
             QuickRow::EjectSave => "Auto Save on Eject",
             QuickRow::Turbo => "Turbo Buttons",
             QuickRow::Rewind => "Rewind",
-            QuickRow::GbPalettes => "GB Palettes",
+            QuickRow::GbPalettes => "Palettes",
             QuickRow::RunAhead => "Run-Ahead",
             QuickRow::Theme => "Theme",
             QuickRow::Wallpaper => "Wallpaper",
@@ -268,10 +293,12 @@ impl QuickRow {
             QuickRow::Shader => "Shader",
             QuickRow::ColourCorrection => "Color Correction",
             QuickRow::Palette => "Palette",
-            QuickRow::Bezels => "Bezels",
-            QuickRow::GbBezel => "GB Bezel",
-            QuickRow::GbcBezel => "GBC Bezel",
-            QuickRow::GbaBezel => "GBA Bezel",
+            QuickRow::ScreenGba => "Game Boy Advance",
+            QuickRow::ScreenGbc => "Game Boy Color",
+            QuickRow::ScreenGb => "Game Boy",
+            QuickRow::GbBezel => "Bezel",
+            QuickRow::GbcBezel => "Bezel",
+            QuickRow::GbaBezel => "Bezel",
             QuickRow::Bezel => "Bezel",
         }
     }
@@ -290,7 +317,9 @@ impl QuickRow {
                 | QuickRow::ExitGame
                 | QuickRow::PlayScreen
                 | QuickRow::PlayGameplay
-                | QuickRow::Bezels
+                | QuickRow::ScreenGba
+                | QuickRow::ScreenGbc
+                | QuickRow::ScreenGb
         )
     }
 
