@@ -51,6 +51,7 @@ const CARD_CHECK_MS: Millis = 2_000;
 const BATTERY_CRITICAL: u8 = 5;
 
 const BATTERY_POLL_MS: Millis = 10_000;
+const MENU_REVEAL_MS: Millis = 180;
 
 const CHARGE_POLL_MS: Millis = 1_000;
 const HEADPHONES_POLL_MS: Millis = 500;
@@ -335,6 +336,7 @@ pub struct App {
     random_wallpaper: Option<Option<String>>,
     battery_percent: slot_ui::Printed,
     bolt: Option<TexId>,
+    hud_bolt: Option<TexId>,
     slot_faces: Option<(TexId, TexId)>,
     shelf_platform: slot_ui::Printed,
     name_pending: bool,
@@ -475,6 +477,7 @@ impl App {
             random_wallpaper: None,
             battery_percent: slot_ui::Printed::default(),
             bolt: None,
+            hud_bolt: None,
             slot_faces: None,
             shelf_platform: slot_ui::Printed::default(),
             name_pending: false,
@@ -984,6 +987,10 @@ impl App {
         self.bolt = Some(bolt);
     }
 
+    pub fn set_hud_bolt_face(&mut self, bolt: TexId) {
+        self.hud_bolt = Some(bolt);
+    }
+
     pub fn set_slot_faces(&mut self, back: TexId, front: TexId) {
         self.slot_faces = Some((back, front));
     }
@@ -1409,6 +1416,13 @@ impl App {
         self.state.appearance.light()
     }
 
+    pub fn status_ink(&self) -> [u8; 3] {
+        match self.phase {
+            Phase::Playing { .. } | Phase::Polaroids { .. } => footer_ink(false),
+            _ => footer_ink(self.light()),
+        }
+    }
+
     pub fn powering_off(&self) -> bool {
         self.powering_off
     }
@@ -1728,6 +1742,13 @@ impl App {
     fn tap_in_game_menu(&mut self, to: Option<QuickRow>) {
         self.menu_tap = Some((self.now(), self.in_game_menu));
         self.in_game_menu = to;
+    }
+
+    fn in_game_menu_shown(&self) -> Option<QuickRow> {
+        match self.menu_tap {
+            Some((at, None)) if self.now().saturating_sub(at) < MENU_REVEAL_MS => None,
+            _ => self.in_game_menu,
+        }
     }
 
     fn double_tap_states(&mut self) {
@@ -2612,7 +2633,7 @@ impl App {
                     p.draw(
                         self.battery,
                         self.battery_percent,
-                        self.bolt,
+                        self.hud_bolt,
                         self.shelf_clock,
                         out,
                     );
@@ -2630,7 +2651,7 @@ impl App {
             }
         }
         if let (Some(row), Phase::Playing { .. }, true) =
-            (self.in_game_menu, &self.phase, self.screen >= 1.0)
+            (self.in_game_menu_shown(), &self.phase, self.screen >= 1.0)
         {
             QuickMenu {
                 row,
@@ -2644,6 +2665,15 @@ impl App {
                 over_game: true,
             }
             .draw(out);
+            if row.page() != QuickRow::PLAY_SCREEN {
+                slot_ui::draw_corners(
+                    self.battery,
+                    self.battery_percent,
+                    self.hud_bolt,
+                    self.shelf_clock,
+                    out,
+                );
+            }
         }
         if let Some(picker) = self.core_picker_shown() {
             self.draw_core_picker(&picker, out);

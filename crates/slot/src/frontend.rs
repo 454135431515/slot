@@ -295,13 +295,15 @@ impl Frontend {
                 look.applied == Some((light, legend_ready, port_ready)),
                 look.slot[i],
                 look.bolt[i],
+                look.bolt[0],
                 look.port[i],
                 look.legend[i].clone(),
                 legend_ready,
                 port_ready,
             )
         });
-        let Some((done, slot, bolt, port, legend, legend_ready, port_ready)) = ready else {
+        let Some((done, slot, bolt, hud_bolt, port, legend, legend_ready, port_ready)) = ready
+        else {
             return;
         };
         if done {
@@ -309,6 +311,7 @@ impl Frontend {
         }
         self.session.app_mut().set_slot_faces(slot[0], slot[1]);
         self.session.app_mut().set_bolt_face(bolt);
+        self.session.app_mut().set_hud_bolt_face(hud_bolt);
         if let Some(tex) = port {
             self.session.app_mut().set_link_port(tex);
         }
@@ -847,7 +850,7 @@ fn sync_switcher(app: &mut App, compositor: &mut Compositor, texes: Faces, state
 }
 
 fn sync_clock(app: &mut App, compositor: &mut Compositor, clocks: &mut Clocks) {
-    let ink = footer_ink(app.light());
+    let ink = app.status_ink();
     if clocks.ink != ink {
         clocks.ink = ink;
         clocks.shown.clear();
