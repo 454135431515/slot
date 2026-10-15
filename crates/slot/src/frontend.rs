@@ -417,7 +417,6 @@ impl Frontend {
         if !slot_gfx::framed(panel) {
             return;
         }
-        slot_ui::set_shelf_slack((OUT_W * panel.1 / panel.0).saturating_sub(OUT_H) as f32);
         let Some(path) = self
             .session
             .app()
@@ -640,7 +639,7 @@ impl Frontend {
             fraction: done as f32 / rebuild.total().max(1) as f32,
         };
         self.draws.clear();
-        screen.draw(&mut self.draws);
+        screen.draw(self.session.app().canvas(), &mut self.draws);
         compositor.draw_list(&self.draws);
         true
     }

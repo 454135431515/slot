@@ -8,7 +8,7 @@ use std::path::Path;
 use common::{clocked, repo_root, tmp_root_with_carts};
 use slot::app::{App, SEATED_AT};
 use slot::frontend::Frontend;
-use slot_gfx::{Compositor, HeadlessSurface, OUT_H, OUT_W};
+use slot_gfx::{Canvas, Compositor, HeadlessSurface, OUT_H, OUT_W};
 use slot_input::{Action, Btn, InputSource, Millis, RawEvent};
 use slot_power::SimPlatform;
 use slot_store::{Cart, Platform as CartPlatform};
@@ -722,6 +722,7 @@ fn both_cartridges_go_into_the_slot_at_their_own_size() {
                     over: true,
                     behind: [None, None],
                     slot,
+                    canvas: Canvas::FRAMED,
                 }
                 .draw(&mut out);
                 out
@@ -794,6 +795,7 @@ fn no_frame_of_the_travel_jumps_further_than_the_cartridge_is_tall() {
                     over: true,
                     behind: [None, None],
                     slot: None,
+                    canvas: Canvas::FRAMED,
                 }
                 .draw(&mut out);
                 out.iter()

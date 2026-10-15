@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use slot_gfx::{OUT_H, OUT_W};
+use slot_gfx::{Canvas, OUT_H, OUT_W};
 use slot_input::{Action, Btn, MENU_DOUBLE_TAP_MS, MUTE_CHORD_MS};
 use slot_power::{Battery, Charge, LedState, LidPolicy, Power};
 use slot_retro::LinkChannel;
@@ -12,13 +12,13 @@ use slot_store::{
     FF_SPEEDS, RING_MAX, RUN_AHEAD_MAX, VOLUME_MAX,
 };
 use slot_ui::{
-    board_from, board_zoom, draw_empty_slot, draw_footer, draw_ground, draw_slot_name,
+    board_from, board_x, board_zoom, draw_empty_slot, draw_footer, draw_ground, draw_slot_name,
     draw_sticker, ease, footer_ink, grown, lid_at, lid_from, lift_of, on_board, repeat_gap,
     shelf_cart_at, ClockPicker, Draw, FfState, GbShell, Hud, HudKind, Icon, LinkBadge, Millis,
     Placed, Polaroids, PowerChoice, QuickMenu, QuickMenuFaces, QuickRow, QuickValue, Refusal,
-    Shelf, SlotChrome, TexId, Toast, BOARD_W, BOARD_X, CART_W, CHIP_H, CHIP_U, CHIP_V, CHIP_W,
-    FOOTER_Y, HINT_EDGE, HINT_H, HOP_LIFT, REPEAT_DELAY_MS, SHADOW_H, SHADOW_W, SOCKET_H, SOCKET_U,
-    SOCKET_V, SOCKET_W, TURN_PAD,
+    Shelf, SlotChrome, TexId, Toast, BOARD_W, CART_W, CHIP_H, CHIP_U, CHIP_V, CHIP_W, FOOTER_Y,
+    HINT_EDGE, HINT_H, HOP_LIFT, REPEAT_DELAY_MS, SHADOW_H, SHADOW_W, SOCKET_H, SOCKET_U, SOCKET_V,
+    SOCKET_W, TURN_PAD,
 };
 
 use crate::audio::Sfx;
@@ -904,7 +904,7 @@ impl App {
             WallpaperPick::Blur => self.blur.or(self.ground),
             WallpaperPick::File(_) | WallpaperPick::Random => self.wallpaper.or(self.ground),
         };
-        draw_ground(face, out);
+        draw_ground(self.canvas(), face, out);
         let alpha = tint_alpha(self.state.wallpaper_tint);
         if alpha > 0.0 && self.own_wallpaper_shown() {
             out.push(Draw::Rect {
@@ -2238,6 +2238,10 @@ impl App {
         };
     }
 
+    pub fn canvas(&self) -> Canvas {
+        Canvas::FRAMED
+    }
+
     pub fn frame_lift(&self) -> f32 {
         self.lift
     }
@@ -2577,13 +2581,25 @@ impl App {
                     (Some(picker), Some(stem)) => {
                         let open = ease(picker.openness(self.now()));
                         let dim = 1.0 + (CORE_PICKER_DIM - 1.0) * open;
-                        self.shelf()
-                            .draw_row(Some(stem), 0.0, CORE_PICKER_RECEDE * open, dim, out);
-                        draw_empty_slot(self.slot_faces, out);
+                        self.shelf().draw_row(
+                            self.canvas(),
+                            Some(stem),
+                            0.0,
+                            CORE_PICKER_RECEDE * open,
+                            dim,
+                            out,
+                        );
+                        draw_empty_slot(self.canvas(), self.slot_faces, out);
                     }
                     _ => {
-                        self.shelf().draw(self.shelf_shake(), self.slot_faces, out);
-                        draw_slot_name(self.shelf_platform, self.slot_name_alpha(), out);
+                        self.shelf()
+                            .draw(self.canvas(), self.shelf_shake(), self.slot_faces, out);
+                        draw_slot_name(
+                            self.canvas(),
+                            self.shelf_platform,
+                            self.slot_name_alpha(),
+                            out,
+                        );
                     }
                 }
                 draw_footer(
@@ -2604,14 +2620,14 @@ impl App {
                 if !resumed {
                     self.draw_background(out);
                     self.shelf()
-                        .draw_row(Some(cart), 0.0, self.seat(), 1.0, out);
+                        .draw_row(self.canvas(), Some(cart), 0.0, self.seat(), 1.0, out);
                 }
                 self.chrome(cart, 0.0, out);
             }
             Phase::Ejecting { cart, .. } => {
                 self.draw_background(out);
                 self.shelf()
-                    .draw_row(Some(cart), 0.0, self.seat(), 1.0, out);
+                    .draw_row(self.canvas(), Some(cart), 0.0, self.seat(), 1.0, out);
                 self.chrome(cart, 0.0, out);
             }
             Phase::Playing { cart } if self.screen < 1.0 => {
@@ -2706,7 +2722,7 @@ impl App {
             return;
         };
         let alpha = self.alert_alpha();
-        let (rest, scale) = self.shelf().selected_at();
+        let (rest, scale) = self.shelf().selected_at(self.canvas());
         SlotChrome {
             cart,
             face,
@@ -2725,6 +2741,7 @@ impl App {
             ),
             behind: self.shelf().behind(stem),
             slot: self.slot_faces,
+            canvas: self.canvas(),
         }
         .draw(out);
     }
@@ -2846,9 +2863,9 @@ impl App {
         let now = self.now();
         let progress = picker.openness(now);
         let lift = lift_of(progress);
-        let (rest, scale) = self.shelf().selected_at();
+        let (rest, scale) = self.shelf().selected_at(self.canvas());
         let shelf = shelf_cart_at(rest, scale);
-        let board = board_from(shelf, progress);
+        let board = board_from(self.canvas(), shelf, progress);
         let zoom = board_zoom(board);
         let ready = self.core_faces_ready();
 
@@ -2927,8 +2944,8 @@ impl App {
         }
 
         if let Some(tex) = self.core_chip_shadow_face {
-            let (lid, _) = lid_from(shelf, progress);
-            let k = lid.w / lid_at(1.0).0.w;
+            let (lid, _) = lid_from(self.canvas(), shelf, progress);
+            let k = lid.w / lid_at(self.canvas(), 1.0).0.w;
             let (w, h) = (LID_SHADOW_W * k, LID_SHADOW_H * k);
             out.push(Draw::Tex {
                 x: lid.x + (lid.w - w) / 2.0,
@@ -2942,7 +2959,7 @@ impl App {
 
         if ready {
             if let Some(tex) = self.core_lid_face {
-                let (lid, turn) = lid_from(shelf, progress);
+                let (lid, turn) = lid_from(self.canvas(), shelf, progress);
                 let at = grown(lid, TURN_PAD as f32 * lid.w / CART_W as f32);
                 out.push(Draw::Turned {
                     x: at.x,
@@ -2958,7 +2975,7 @@ impl App {
             .selected_stem()
             .and_then(|stem| self.shelf().find(stem))
         {
-            let (lid, turn) = lid_from(shelf, progress);
+            let (lid, turn) = lid_from(self.canvas(), shelf, progress);
             out.push(Draw::Turned {
                 x: lid.x,
                 y: lid.y,
@@ -2971,10 +2988,10 @@ impl App {
         }
 
         if let [cancel, swap, choose] = self.core_legend_faces.as_slice() {
-            let right = BOARD_X + BOARD_W as f32;
+            let right = board_x(self.canvas()) + BOARD_W as f32;
             let seen = |w: u32| w.saturating_sub(HINT_EDGE) as f32;
             for (tex, w, x) in [
-                (cancel.0, cancel.1, BOARD_X),
+                (cancel.0, cancel.1, board_x(self.canvas())),
                 (swap.0, swap.1, (OUT_W as f32 - seen(swap.1)) / 2.0),
                 (choose.0, choose.1, right - seen(choose.1)),
             ] {
