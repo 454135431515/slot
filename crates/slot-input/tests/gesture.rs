@@ -125,6 +125,14 @@ fn a_select_press_inside_the_tap_window_hands_back_the_release_it_interrupted() 
 }
 
 #[test]
+fn menu_single_tap_opens_the_quick_menu() {
+    let mut g = Gestures::new();
+    assert!(g.feed(Down(Menu), 0).is_empty(), "acted on the press");
+    assert_eq!(g.feed(Up(Menu), 100), vec![QuickMenu]);
+    assert!(g.tick(451).is_empty(), "fired a second time on the timer");
+}
+
+#[test]
 fn menu_single_tap_opens_the_quick_menu_with_menu_dpad_display_enabled() {
     let mut g = Gestures::new();
     g.set_menu_dpad_display(true);
@@ -139,6 +147,14 @@ fn a_menu_hold_is_not_also_a_tap() {
     g.feed(Down(Menu), 0);
     assert_eq!(g.tick(MENU_HOLD_MS), vec![Eject]);
     assert!(g.feed(Up(Menu), MENU_HOLD_MS + 50).is_empty());
+}
+
+#[test]
+fn menu_double_tap_opens_polaroids_immediately() {
+    let mut g = Gestures::new();
+    g.feed(Down(Menu), 0);
+    g.feed(Up(Menu), 100);
+    assert_eq!(g.feed(Down(Menu), 300), vec![Polaroids]);
 }
 
 #[test]
@@ -517,6 +533,24 @@ fn x_under_select_reaches_the_game() {
     let mut g = Gestures::new();
     assert!(g.feed(Down(Select), 0).is_empty());
     assert_eq!(g.feed(Down(X), 10), vec![GbaDown(Select), GbaDown(X)]);
+}
+
+#[test]
+fn select_and_either_volume_key_mutes_for_a_volume_wheel_with_no_chord() {
+    for vol in [VolUp, VolDown] {
+        let mut g = Gestures::new();
+        assert!(g.feed(Down(Select), 0).is_empty());
+        assert_eq!(g.feed(Down(vol), 100), vec![MuteToggle], "{vol:?}");
+        assert!(
+            g.tick(100 + VOLUME_REPEAT_DELAY_MS * 3).is_empty(),
+            "{vol:?} ramped the volume under SELECT"
+        );
+        assert!(g.feed(Up(vol), 900).is_empty(), "{vol:?}");
+        assert!(
+            g.feed(Up(Select), 950).is_empty(),
+            "the mute chord's SELECT reached the game"
+        );
+    }
 }
 
 #[test]

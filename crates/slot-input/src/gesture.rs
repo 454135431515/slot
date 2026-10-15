@@ -201,7 +201,7 @@ impl Gestures {
     }
 
     fn up(&mut self, b: Btn, now: Millis) -> Vec<Action> {
-        if let Some((bit, _)) = chord(b).or_else(|| display_chord(b)) {
+        if let Some((bit, _)) = chord(b) {
             if self.chord_held & bit != 0 {
                 self.chord_held &= !bit;
                 return Vec::new();
