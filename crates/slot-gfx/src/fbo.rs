@@ -36,6 +36,8 @@ pub struct Compositor {
     u_bezel_gain: gl::types::GLint,
     u_bezel_alpha: gl::types::GLint,
     bezel: Option<gl::types::GLuint>,
+    game_bezel: Option<TexId>,
+    sp_frame: bool,
     turn: Option<Turn>,
 }
 
@@ -102,6 +104,8 @@ impl Compositor {
                 u_bezel_gain,
                 u_bezel_alpha,
                 bezel: None,
+                game_bezel: None,
+                sp_frame: true,
                 turn: None,
             })
         }
@@ -142,7 +146,10 @@ impl Compositor {
             match *item {
                 Draw::Game => {
                     self.sprites.draw(&items[from..i], &self.quad);
-                    self.in_game_rect(|c| c.game.draw(&c.quad));
+                    self.in_game_rect(|c| {
+                        c.game.draw(&c.quad);
+                        c.draw_game_bezel();
+                    });
                 }
                 Draw::Shot { tex } => {
                     self.sprites.draw(&items[from..i], &self.quad);
@@ -179,6 +186,35 @@ impl Compositor {
 
     pub fn set_picture(&mut self, rect: [f32; 4]) {
         self.game.set_picture(rect);
+    }
+
+    pub fn set_game_bezel(&mut self, tex: Option<TexId>) {
+        self.game_bezel = tex;
+    }
+
+    pub fn set_sp_frame(&mut self, on: bool) {
+        self.sp_frame = on;
+    }
+
+    fn draw_game_bezel(&mut self) {
+        let Some(tex) = self.game_bezel else {
+            return;
+        };
+        let (x, y, w, h) = self.game.frame();
+        self.sprites.set_target(Canvas::FRAMED);
+        self.sprites.draw(
+            &[Draw::Tex {
+                x,
+                y,
+                w,
+                h,
+                tex,
+                alpha: 1.0,
+            }],
+            &self.quad,
+        );
+        self.sprites
+            .set_target(Canvas::of(self.layout, self.window));
     }
 
     pub fn set_paper(&mut self, size: u32, gray: &[u8]) {
@@ -417,9 +453,15 @@ impl Compositor {
             return;
         }
         let framed = crate::bezel::framed(window);
-        let (x, y, w, h) = blit_rect(window, self.shake);
+        let (x, mut y, w, h) = blit_rect(window, self.shake);
+        if framed && !self.sp_frame {
+            y = (window.1 as i32 - h) / 2;
+        }
         self.blit_part(x, y, w, h, [0.0, 0.0, 1.0, 1.0]);
-        let Some(bezel) = self.bezel.filter(|_| framed && self.slide > 0.0) else {
+        let Some(bezel) = self
+            .bezel
+            .filter(|_| framed && self.sp_frame && self.slide > 0.0)
+        else {
             return;
         };
         let drop = crate::bezel::lifted_rect(window, self.slide).1;
@@ -445,7 +487,10 @@ impl Compositor {
         let (w, h) = canvas_size(self.window);
         self.game
             .set_fbo_scale(w as f32 / OUT_W as f32, h as f32 / OUT_H as f32);
-        let y = self.size.1 - h;
+        let y = match self.sp_frame {
+            true => self.size.1 - h,
+            false => (self.size.1 - h) / 2,
+        };
         self.game.set_origin(0.0, y as f32);
         unsafe { gl::Viewport(0, y as i32, w as i32, h as i32) };
         draw(self);

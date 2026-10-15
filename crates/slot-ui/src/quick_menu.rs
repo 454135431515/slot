@@ -39,10 +39,15 @@ pub enum QuickRow {
     Shader,
     ColourCorrection,
     Palette,
+    Bezels,
+    GbBezel,
+    GbcBezel,
+    Bezel,
+    GbaBezel,
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 33] = [
+    pub const ALL: [QuickRow; 38] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Screen,
@@ -76,6 +81,11 @@ impl QuickRow {
         QuickRow::Shader,
         QuickRow::ColourCorrection,
         QuickRow::Palette,
+        QuickRow::Bezels,
+        QuickRow::GbBezel,
+        QuickRow::GbcBezel,
+        QuickRow::Bezel,
+        QuickRow::GbaBezel,
     ];
 
     pub const MAIN: [QuickRow; 4] = [
@@ -94,7 +104,7 @@ impl QuickRow {
         QuickRow::DateTime,
     ];
 
-    pub const SCREEN: [QuickRow; 7] = [
+    pub const SCREEN: [QuickRow; 8] = [
         QuickRow::GbaShader,
         QuickRow::GbaColourCorrection,
         QuickRow::GbcShader,
@@ -102,7 +112,10 @@ impl QuickRow {
         QuickRow::GbShader,
         QuickRow::GbColourCorrection,
         QuickRow::GbPalettes,
+        QuickRow::Bezels,
     ];
+
+    pub const BEZELS: [QuickRow; 3] = [QuickRow::GbaBezel, QuickRow::GbcBezel, QuickRow::GbBezel];
 
     pub const GAME: [QuickRow; 7] = [
         QuickRow::FastForward,
@@ -123,10 +136,11 @@ impl QuickRow {
 
     pub const SETTINGS: [QuickRow; 2] = [QuickRow::PlayScreen, QuickRow::PlayGameplay];
 
-    pub const PLAY_SCREEN: [QuickRow; 3] = [
+    pub const PLAY_SCREEN: [QuickRow; 4] = [
         QuickRow::Shader,
         QuickRow::ColourCorrection,
         QuickRow::Palette,
+        QuickRow::Bezel,
     ];
 
     pub fn index(self) -> usize {
@@ -141,7 +155,9 @@ impl QuickRow {
             | QuickRow::GbaColourCorrection
             | QuickRow::GbColourCorrection
             | QuickRow::GbcColourCorrection
-            | QuickRow::GbPalettes => &QuickRow::SCREEN,
+            | QuickRow::GbPalettes
+            | QuickRow::Bezels => &QuickRow::SCREEN,
+            QuickRow::GbaBezel | QuickRow::GbBezel | QuickRow::GbcBezel => &QuickRow::BEZELS,
             QuickRow::FastForward
             | QuickRow::FastForwardSound
             | QuickRow::Rewind
@@ -159,7 +175,7 @@ impl QuickRow {
                 &QuickRow::PLAY
             }
             QuickRow::PlayScreen | QuickRow::PlayGameplay => &QuickRow::SETTINGS,
-            QuickRow::Shader | QuickRow::ColourCorrection | QuickRow::Palette => {
+            QuickRow::Shader | QuickRow::ColourCorrection | QuickRow::Palette | QuickRow::Bezel => {
                 &QuickRow::PLAY_SCREEN
             }
             _ => &QuickRow::MAIN,
@@ -173,6 +189,7 @@ impl QuickRow {
             QuickRow::Wallpaper => Some(QuickRow::General),
             QuickRow::PlayScreen => Some(QuickRow::Settings),
             QuickRow::Shader => Some(QuickRow::PlayScreen),
+            QuickRow::GbaBezel => Some(QuickRow::Bezels),
             _ => None,
         }
     }
@@ -196,6 +213,7 @@ impl QuickRow {
             QuickRow::Settings => Some(QuickRow::SETTINGS[0]),
             QuickRow::PlayScreen => Some(QuickRow::PLAY_SCREEN[0]),
             QuickRow::PlayGameplay => Some(QuickRow::GAME[0]),
+            QuickRow::Bezels => Some(QuickRow::BEZELS[0]),
             _ => None,
         }
     }
@@ -250,6 +268,11 @@ impl QuickRow {
             QuickRow::Shader => "Shader",
             QuickRow::ColourCorrection => "Color Correction",
             QuickRow::Palette => "Palette",
+            QuickRow::Bezels => "Bezels",
+            QuickRow::GbBezel => "GB Bezel",
+            QuickRow::GbcBezel => "GBC Bezel",
+            QuickRow::GbaBezel => "GBA Bezel",
+            QuickRow::Bezel => "Bezel",
         }
     }
 
@@ -267,6 +290,7 @@ impl QuickRow {
                 | QuickRow::ExitGame
                 | QuickRow::PlayScreen
                 | QuickRow::PlayGameplay
+                | QuickRow::Bezels
         )
     }
 
@@ -522,6 +546,10 @@ pub struct QuickMenu<'a> {
     pub faces: Option<&'a QuickMenuFaces>,
     pub ground: Option<TexId>,
     pub palette: Option<[(TexId, u32, u32); 2]>,
+    pub gba_bezel: Option<[(TexId, u32, u32); 2]>,
+    pub gb_bezel: Option<[(TexId, u32, u32); 2]>,
+    pub gbc_bezel: Option<[(TexId, u32, u32); 2]>,
+    pub bezel: Option<[(TexId, u32, u32); 2]>,
     pub over_game: bool,
     pub canvas: Canvas,
 }
@@ -575,6 +603,10 @@ impl QuickMenu<'_> {
                 QuickRow::DateTime => self.clock.map(|c| c[lit as usize]),
                 QuickRow::Wallpaper => self.wallpaper.map(|c| c[lit as usize]),
                 QuickRow::Palette => self.palette.map(|c| c[lit as usize]),
+                QuickRow::GbaBezel => self.gba_bezel.map(|c| c[lit as usize]),
+                QuickRow::GbBezel => self.gb_bezel.map(|c| c[lit as usize]),
+                QuickRow::GbcBezel => self.gbc_bezel.map(|c| c[lit as usize]),
+                QuickRow::Bezel => self.bezel.map(|c| c[lit as usize]),
                 _ => self.values[row.index()]
                     .and_then(|v| faces.values.get(v.index()))
                     .map(|v| v[lit as usize]),

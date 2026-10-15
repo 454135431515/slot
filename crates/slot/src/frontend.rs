@@ -5,16 +5,17 @@ use slot_gfx::{Compositor, Draw, ScreenEffect, TexId, OUT_H, OUT_W};
 const PAPER: &[u8] = include_bytes!("../assets/paper.png");
 use slot_input::{InputSource, Millis};
 use slot_power::{Platform, Power};
-use slot_store::format_stamp;
+use slot_store::{format_stamp, BezelPick, Platform as Console};
 use slot_ui::{
     arrows_hint_coloured, arrows_hint_face, badge_face, bezel_face, cart_shadow, chip_face,
-    chip_shadow_face, date_time_text, footer_ink, gb_cart_shadow, hhmm, hint_coloured, hint_face,
-    icon_face, menu_face, photo_face, quick_caret_face, quick_label_face, quick_legend_faces,
-    quick_pointer_face, quick_value_face, rebuild_count_face, rebuild_title_face,
-    set_clock_hint_face, slot_back, slot_back_light, slot_front, slot_front_light, socket_face,
-    sticker_face, title_face, toast_face, wallpaper_face, word_ink, CartFace, GbShell, Icon,
-    LinkBadge, PowerChoice, QuickMenuFaces, QuickRow, QuickValue, RebuildScreen, StickerFields,
-    Toast, UndoFace, ALERT_PX, BOLT_PX, HUD_ICON_PX, HUD_INK, LEGEND,
+    chip_shadow_face, date_time_text, default_game_bezel_face, footer_ink, game_bezel_face,
+    gb_cart_shadow, hhmm, hint_coloured, hint_face, icon_face, menu_face, photo_face,
+    quick_caret_face, quick_label_face, quick_legend_faces, quick_pointer_face, quick_value_face,
+    rebuild_count_face, rebuild_title_face, set_clock_hint_face, slot_back, slot_back_light,
+    slot_front, slot_front_light, socket_face, sticker_face, title_face, toast_face,
+    wallpaper_face, word_ink, CartFace, GbShell, Icon, LinkBadge, PowerChoice, QuickMenuFaces,
+    QuickRow, QuickValue, RebuildScreen, StickerFields, Toast, UndoFace, ALERT_PX, BOLT_PX,
+    HUD_ICON_PX, HUD_INK, LEGEND,
 };
 
 use crate::app::{App, LinkRow, Phase};
@@ -56,6 +57,7 @@ pub struct Frontend {
     quick_clock: QuickClock,
     quick_palette: QuickPalette,
     wallpaper: WallpaperSync,
+    game_bezel: BezelSync,
     look: Option<ShelfLook>,
     link_shot: Option<TexId>,
     link_shot_size: (u32, u32),
@@ -82,6 +84,14 @@ struct QuickPalette {
     dim: Option<TexId>,
     lit: Option<TexId>,
     shown: &'static str,
+}
+
+#[derive(Default)]
+struct BezelSync {
+    tex: Option<TexId>,
+    image: Option<(Console, BezelPick)>,
+    labels: [String; 3],
+    faces: [(Option<TexId>, Option<TexId>); 3],
 }
 
 #[derive(Default)]
@@ -169,6 +179,7 @@ impl Frontend {
             quick_clock: QuickClock::default(),
             quick_palette: QuickPalette::default(),
             wallpaper: WallpaperSync::default(),
+            game_bezel: BezelSync::default(),
             look: None,
             link_shot: None,
             link_shot_size: (0, 0),
@@ -509,6 +520,9 @@ impl Frontend {
         sync_quick_clock(self.session.app_mut(), compositor, &mut self.quick_clock);
         sync_quick_palette(self.session.app_mut(), compositor, &mut self.quick_palette);
         sync_wallpaper(self.session.app_mut(), compositor, &mut self.wallpaper);
+        sync_game_bezel(self.session.app_mut(), compositor, &mut self.game_bezel);
+        compositor.set_game_bezel(self.session.app().shown_game_bezel());
+        compositor.set_sp_frame(self.session.app().sp_frame());
         sync_core_picker(
             self.session.app_mut(),
             compositor,
@@ -917,6 +931,64 @@ fn sync_clock(app: &mut App, compositor: &mut Compositor, clocks: &mut Clocks) {
             let id = upload(compositor, &mut clocks.battery_tex, face);
             app.set_battery_percent_face(id, w);
         }
+    }
+}
+
+fn sync_game_bezel(app: &mut App, compositor: &mut Compositor, state: &mut BezelSync) {
+    let platform = app.playing_platform();
+    let pick = app.resolved_bezel(platform);
+    let shown = (platform, pick);
+    if state.image.as_ref() != Some(&shown) {
+        let rgba = match &shown.1 {
+            BezelPick::None | BezelPick::Ags102 => None,
+            BezelPick::Default => default_game_bezel_face(platform == Console::Gbc),
+            BezelPick::File(name) => app
+                .root()
+                .map(|root| {
+                    root.join(crate::bezel::GAME_BEZELS)
+                        .join(platform.dir_name())
+                        .join(name)
+                })
+                .and_then(|path| game_bezel_face(&path)),
+        };
+        let tex = rgba.map(|rgba| match state.tex {
+            Some(id) => {
+                compositor.update_texture(id, OUT_W, OUT_H, &rgba);
+                id
+            }
+            None => {
+                let id = compositor.create_texture(OUT_W, OUT_H, &rgba);
+                state.tex = Some(id);
+                id
+            }
+        });
+        app.set_game_bezel(tex);
+        state.image = Some(shown);
+    }
+    if app.quick_menu().is_none() && app.in_game_menu().is_none() {
+        return;
+    }
+    for (at, platform) in [Console::Gba, Console::Gb, Console::Gbc]
+        .into_iter()
+        .enumerate()
+    {
+        let label = app.resolved_bezel(platform).label();
+        if state.labels[at] == label {
+            continue;
+        }
+        let (dim, lit) = (
+            quick_value_face(&label, false),
+            quick_value_face(&label, true),
+        );
+        let (dim_size, lit_size) = ((dim.w, dim.h), (lit.w, lit.h));
+        let dim = upload(compositor, &mut state.faces[at].0, dim);
+        let lit = upload(compositor, &mut state.faces[at].1, lit);
+        app.set_quick_bezel_faces(
+            platform,
+            (dim, dim_size.0, dim_size.1),
+            (lit, lit_size.0, lit_size.1),
+        );
+        state.labels[at] = label;
     }
 }
 

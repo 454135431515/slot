@@ -7,9 +7,9 @@ use slot_input::{Action, Btn, MENU_DOUBLE_TAP_MS, MUTE_CHORD_MS};
 use slot_power::{Battery, Charge, LedState, LidPolicy, Power};
 use slot_retro::LinkChannel;
 use slot_store::{
-    format_stamp, read_slot_state, scan, write_slot_state, Cart, Core, GbPalette, Platform, Recent,
-    Shader, SlotState, StateEntry, StateRing, WallpaperPick, WallpaperTint, BLUE_LIGHT_MAX,
-    BRIGHTNESS_MAX, FF_SPEEDS, RING_MAX, RUN_AHEAD_MAX, VOLUME_MAX,
+    format_stamp, read_slot_state, scan, write_slot_state, BezelPick, Cart, Core, GbPalette,
+    Platform, Recent, Shader, SlotState, StateEntry, StateRing, WallpaperPick, WallpaperTint,
+    BLUE_LIGHT_MAX, BRIGHTNESS_MAX, FF_SPEEDS, RING_MAX, RUN_AHEAD_MAX, VOLUME_MAX,
 };
 use slot_ui::{
     board_from, board_x, board_zoom, draw_empty_slot, draw_footer, draw_ground, draw_slot_name,
@@ -363,6 +363,8 @@ pub struct App {
     quick_clock_faces: Option<[(TexId, u32, u32); 2]>,
     quick_wallpaper_faces: Option<[(TexId, u32, u32); 2]>,
     quick_palette_faces: Option<[(TexId, u32, u32); 2]>,
+    quick_bezel_faces: [Option<[(TexId, u32, u32); 2]>; 3],
+    game_bezel: Option<TexId>,
     in_game_menu: Option<QuickRow>,
     states_from_menu: bool,
     menu_tap: Option<(Millis, Option<QuickRow>)>,
@@ -508,6 +510,8 @@ impl App {
             quick_clock_faces: None,
             quick_wallpaper_faces: None,
             quick_palette_faces: None,
+            quick_bezel_faces: [None, None, None],
+            game_bezel: None,
             in_game_menu: None,
             states_from_menu: false,
             menu_tap: None,
@@ -817,11 +821,16 @@ impl App {
     }
 
     pub fn in_game_hidden(&self) -> &'static [QuickRow] {
-        match (self.palette_live, self.single_cart()) {
-            (true, false) => &[],
-            (false, false) => &[QuickRow::Palette],
-            (true, true) => &[QuickRow::ExitGame],
-            (false, true) => &[QuickRow::Palette, QuickRow::ExitGame],
+        let no_bezel = self.playing_platform() == Platform::Gba && !self.framed_panel();
+        match (self.palette_live, no_bezel, self.single_cart()) {
+            (true, false, false) => &[],
+            (true, false, true) => &[QuickRow::ExitGame],
+            (true, true, false) => &[QuickRow::Bezel],
+            (true, true, true) => &[QuickRow::Bezel, QuickRow::ExitGame],
+            (false, false, false) => &[QuickRow::Palette],
+            (false, false, true) => &[QuickRow::Palette, QuickRow::ExitGame],
+            (false, true, false) => &[QuickRow::Palette, QuickRow::Bezel],
+            (false, true, true) => &[QuickRow::Palette, QuickRow::Bezel, QuickRow::ExitGame],
         }
     }
 
@@ -841,6 +850,9 @@ impl App {
             (QuickRow::ColourCorrection, Platform::Gba) => QuickRow::GbaColourCorrection,
             (QuickRow::ColourCorrection, Platform::Gb) => QuickRow::GbColourCorrection,
             (QuickRow::ColourCorrection, Platform::Gbc) => QuickRow::GbcColourCorrection,
+            (QuickRow::Bezel, Platform::Gba) => QuickRow::GbaBezel,
+            (QuickRow::Bezel, Platform::Gb) => QuickRow::GbBezel,
+            (QuickRow::Bezel, Platform::Gbc) => QuickRow::GbcBezel,
             (row, _) => row,
         }
     }
@@ -901,7 +913,12 @@ impl App {
             | QuickRow::ExitGame
             | QuickRow::PlayScreen
             | QuickRow::PlayGameplay
-            | QuickRow::Palette => None,
+            | QuickRow::Palette
+            | QuickRow::Bezels
+            | QuickRow::GbBezel
+            | QuickRow::GbcBezel
+            | QuickRow::GbaBezel
+            | QuickRow::Bezel => None,
         }
     }
 
@@ -915,6 +932,85 @@ impl App {
 
     pub fn set_quick_wallpaper_faces(&mut self, dim: (TexId, u32, u32), lit: (TexId, u32, u32)) {
         self.quick_wallpaper_faces = Some([dim, lit]);
+    }
+
+    pub fn set_quick_bezel_faces(
+        &mut self,
+        platform: Platform,
+        dim: (TexId, u32, u32),
+        lit: (TexId, u32, u32),
+    ) {
+        self.quick_bezel_faces[bezel_slot(platform)] = Some([dim, lit]);
+    }
+
+    pub fn bezel_files(&self, platform: Platform) -> Vec<String> {
+        match platform {
+            Platform::Gba => Vec::new(),
+            _ => self
+                .root()
+                .map(|root| crate::bezel::list(root, platform))
+                .unwrap_or_default(),
+        }
+    }
+
+    fn bezel_choices(&self, platform: Platform) -> Vec<BezelPick> {
+        let mut choices = vec![BezelPick::None];
+        if platform != Platform::Gba {
+            choices.push(BezelPick::Default);
+        }
+        if self.framed_panel() {
+            choices.push(BezelPick::Ags102);
+        }
+        choices.extend(self.bezel_files(platform).into_iter().map(BezelPick::File));
+        choices
+    }
+
+    fn bezel_pick(&mut self, platform: Platform) -> &mut BezelPick {
+        match platform {
+            Platform::Gba => &mut self.state.bezel_gba,
+            Platform::Gb => &mut self.state.bezel_gb,
+            Platform::Gbc => &mut self.state.bezel_gbc,
+        }
+    }
+
+    pub fn resolved_bezel(&self, platform: Platform) -> BezelPick {
+        let pick = match platform {
+            Platform::Gba => &self.state.bezel_gba,
+            Platform::Gb => &self.state.bezel_gb,
+            Platform::Gbc => &self.state.bezel_gbc,
+        };
+        match self.bezel_choices(platform).contains(pick) {
+            true => pick.clone(),
+            false => BezelPick::None,
+        }
+    }
+
+    fn cycle_bezel(&mut self, platform: Platform, right: bool) {
+        let choices = self.bezel_choices(platform);
+        let key = self.resolved_bezel(platform).key();
+        let at = choices.iter().position(|c| c.key() == key).unwrap_or(0);
+        let n = choices.len();
+        *self.bezel_pick(platform) = choices[if right {
+            (at + 1) % n
+        } else {
+            (at + n - 1) % n
+        }]
+        .clone();
+    }
+
+    pub fn sp_frame(&self) -> bool {
+        self.resolved_bezel(self.playing_platform()) == BezelPick::Ags102
+    }
+
+    pub fn set_game_bezel(&mut self, tex: Option<TexId>) {
+        self.game_bezel = tex;
+    }
+
+    pub fn shown_game_bezel(&self) -> Option<TexId> {
+        if self.video_mode == VideoMode::Stretch {
+            return None;
+        }
+        self.game_bezel
     }
 
     pub fn wallpaper_files(&self) -> Vec<String> {
@@ -1012,9 +1108,15 @@ impl App {
     }
 
     pub fn hidden_rows(&self) -> &'static [QuickRow] {
-        match self.state.wallpaper {
-            WallpaperPick::File(_) | WallpaperPick::Random => &[],
-            _ => &[QuickRow::WallpaperTint],
+        let own = matches!(
+            self.state.wallpaper,
+            WallpaperPick::File(_) | WallpaperPick::Random
+        );
+        match (own, self.framed_panel()) {
+            (true, true) => &[],
+            (true, false) => &[QuickRow::GbaBezel],
+            (false, true) => &[QuickRow::WallpaperTint],
+            (false, false) => &[QuickRow::WallpaperTint, QuickRow::GbaBezel],
         }
     }
 
@@ -1900,8 +2002,9 @@ impl App {
                 self.phase = clock_screen(self.utc_secs(), self.state.utc_offset_min, true);
             }
             QuickRow::About => self.phase = Phase::About,
-            QuickRow::Screen | QuickRow::Game | QuickRow::General => {
+            QuickRow::Screen | QuickRow::Game | QuickRow::General | QuickRow::Bezels => {
                 if let Some(row) = row.child() {
+                    let row = row.shown(self.hidden_rows())[0];
                     self.phase = Phase::QuickMenu { row };
                 }
             }
@@ -1932,7 +2035,11 @@ impl App {
             | QuickRow::PlayGameplay
             | QuickRow::Shader
             | QuickRow::ColourCorrection
-            | QuickRow::Palette => {}
+            | QuickRow::Palette
+            | QuickRow::GbBezel
+            | QuickRow::GbcBezel
+            | QuickRow::GbaBezel
+            | QuickRow::Bezel => {}
         }
     }
 
@@ -1945,6 +2052,16 @@ impl App {
             };
             self.state.gb_palette = to;
             self.palette_pending = Some(to);
+            self.persist();
+            return;
+        }
+        if let QuickRow::GbaBezel | QuickRow::GbBezel | QuickRow::GbcBezel = row {
+            let platform = match row {
+                QuickRow::GbaBezel => Platform::Gba,
+                QuickRow::GbBezel => Platform::Gb,
+                _ => Platform::Gbc,
+            };
+            self.cycle_bezel(platform, right);
             self.persist();
             return;
         }
@@ -2034,7 +2151,12 @@ impl App {
             | QuickRow::PlayGameplay
             | QuickRow::Shader
             | QuickRow::ColourCorrection
-            | QuickRow::Palette => return,
+            | QuickRow::Palette
+            | QuickRow::Bezels
+            | QuickRow::GbBezel
+            | QuickRow::GbcBezel
+            | QuickRow::GbaBezel
+            | QuickRow::Bezel => return,
         }
         self.persist();
     }
@@ -2784,6 +2906,10 @@ impl App {
                 faces: self.quick_menu_faces.as_ref(),
                 ground: self.menu_ground(),
                 palette: None,
+                gba_bezel: self.quick_bezel_faces[bezel_slot(Platform::Gba)],
+                gb_bezel: self.quick_bezel_faces[bezel_slot(Platform::Gb)],
+                gbc_bezel: self.quick_bezel_faces[bezel_slot(Platform::Gbc)],
+                bezel: None,
                 over_game: false,
                 canvas: self.canvas(),
             }
@@ -2899,6 +3025,10 @@ impl App {
                 faces: self.quick_menu_faces.as_ref(),
                 ground: None,
                 palette: self.quick_palette_faces,
+                gba_bezel: None,
+                gb_bezel: None,
+                gbc_bezel: None,
+                bezel: self.quick_bezel_faces[bezel_slot(self.playing_platform())],
                 over_game: true,
                 canvas: self.canvas(),
             }
@@ -4406,5 +4536,13 @@ fn draw_menu_rows(
             tex,
             alpha: 1.0,
         });
+    }
+}
+
+fn bezel_slot(platform: Platform) -> usize {
+    match platform {
+        Platform::Gba => 0,
+        Platform::Gb => 1,
+        Platform::Gbc => 2,
     }
 }

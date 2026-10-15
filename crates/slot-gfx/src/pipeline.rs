@@ -95,6 +95,13 @@ impl GamePass {
         self.power = t.clamp(0.0, 1.0);
     }
 
+    pub fn frame(&self) -> (f32, f32, f32, f32) {
+        match self.fills {
+            true => (0.0, 0.0, OUT_W as f32, OUT_H as f32),
+            false => screen_rect(self.power),
+        }
+    }
+
     pub fn set_fills_frame(&mut self, on: bool) {
         self.fills = on;
     }

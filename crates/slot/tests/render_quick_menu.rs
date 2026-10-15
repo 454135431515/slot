@@ -296,6 +296,9 @@ fn the_screen_page_sets_gb_palettes_in_line_with_the_rows_above() {
             (64..=68).contains(&first),
             "{row:?}'s label starts at x {first}"
         );
+        if row.opens() {
+            continue;
+        }
         let value = inked(&px, 360..OUT_W as usize, top);
         let last = *value.last().expect("a row with no value");
         assert!(

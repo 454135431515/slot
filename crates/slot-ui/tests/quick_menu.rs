@@ -116,7 +116,8 @@ fn the_rows_run_in_the_order_the_user_chose() {
             "GBC Color Correction",
             "GB Shader",
             "GB Color Correction",
-            "GB Palettes"
+            "GB Palettes",
+            "Bezels"
         ]
     );
     assert_eq!(
@@ -145,7 +146,8 @@ fn the_rows_run_in_the_order_the_user_chose() {
             QuickRow::Settings,
             QuickRow::ExitGame,
             QuickRow::PlayScreen,
-            QuickRow::PlayGameplay
+            QuickRow::PlayGameplay,
+            QuickRow::Bezels
         ]
     );
     for page in [
@@ -156,6 +158,7 @@ fn the_rows_run_in_the_order_the_user_chose() {
         &QuickRow::PLAY[..],
         &QuickRow::SETTINGS[..],
         &QuickRow::PLAY_SCREEN[..],
+        &QuickRow::BEZELS[..],
     ] {
         for &row in page {
             assert_eq!(row.page(), page, "{row:?}");
@@ -313,7 +316,8 @@ fn the_in_game_pages_hold_their_rows_in_order() {
         [
             QuickRow::Shader,
             QuickRow::ColourCorrection,
-            QuickRow::Palette
+            QuickRow::Palette,
+            QuickRow::Bezel
         ]
     );
     for row in QuickRow::PLAY {
@@ -369,15 +373,26 @@ fn in_game_rows_read_as_the_menu_shows_them() {
 }
 
 #[test]
-fn a_hidden_palette_leaves_two_screen_rows() {
+fn a_hidden_palette_and_bezel_leave_two_screen_rows() {
+    let hidden = [QuickRow::Palette, QuickRow::Bezel];
     assert_eq!(
-        QuickRow::Shader.shown(&[QuickRow::Palette]),
+        QuickRow::Shader.shown(&hidden),
         vec![QuickRow::Shader, QuickRow::ColourCorrection]
     );
+    assert_eq!(QuickRow::ColourCorrection.down(&hidden), QuickRow::Shader);
+}
+
+#[test]
+fn bezels_open_a_page_of_gba_gbc_then_gb_under_screen() {
+    assert_eq!(QuickRow::Bezels.child(), Some(QuickRow::GbaBezel));
     assert_eq!(
-        QuickRow::ColourCorrection.down(&[QuickRow::Palette]),
-        QuickRow::Shader
+        QuickRow::BEZELS.map(QuickRow::label),
+        ["GBA Bezel", "GBC Bezel", "GB Bezel"]
     );
+    for row in QuickRow::BEZELS {
+        assert_eq!(row.parent(), Some(QuickRow::Bezels), "{row:?}");
+    }
+    assert_eq!(QuickRow::Bezels.parent(), Some(QuickRow::Screen));
 }
 
 #[test]

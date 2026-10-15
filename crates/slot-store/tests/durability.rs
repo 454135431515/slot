@@ -2,8 +2,8 @@ mod common;
 
 use common::tmp_root;
 use slot_store::{
-    atomic_write, read_slot_state, write_slot_state, Appearance, GbPalette, Platform, Recent,
-    Shader, SlotState, WallpaperPick, WallpaperTint, FF_SPEEDS, FF_SPEED_DEFAULT,
+    atomic_write, read_slot_state, write_slot_state, Appearance, BezelPick, GbPalette, Platform,
+    Recent, Shader, SlotState, WallpaperPick, WallpaperTint, FF_SPEEDS, FF_SPEED_DEFAULT,
 };
 use tempfile::tempdir;
 
@@ -218,6 +218,9 @@ fn a_card_from_before_the_settings_keeps_all_its_values() {
             wallpaper_tint: WallpaperTint::Off,
             show_recents: false,
             show_titles: false,
+            bezel_gba: BezelPick::Ags102,
+            bezel_gb: BezelPick::Ags102,
+            bezel_gbc: BezelPick::Ags102,
             recents: Vec::new(),
             favorites: Vec::new(),
             shelf: None,
@@ -247,6 +250,9 @@ fn the_quick_menu_settings_round_trip_as_their_own_lines() {
         wallpaper_tint: WallpaperTint::Medium,
         colour_correction_gbc: true,
         shader_gbc: Shader::Grid,
+        bezel_gba: BezelPick::None,
+        bezel_gb: BezelPick::Default,
+        bezel_gbc: BezelPick::File("Pocket.png".into()),
         shelf: Some("gba".into()),
         shelf_cart: Some(Recent {
             platform: Platform::Gba,
@@ -273,6 +279,9 @@ fn the_quick_menu_settings_round_trip_as_their_own_lines() {
         "gb_palette=GBC Dark Green →A",
         "appearance=dark",
         "wallpaper_tint=medium",
+        "bezel_gba=none",
+        "bezel_gb=default",
+        "bezel_gbc=Pocket.png",
         "colour_correction_gbc=1",
         "shader_gbc=grid",
         "shelf=gba",
