@@ -93,6 +93,20 @@ pub fn gb_shell_of(cart: &Cart) -> Option<GbShell> {
     }
 }
 
+pub fn label_rect(shell: Option<GbShell>) -> (f32, f32, f32, f32) {
+    let s = spec(match shell {
+        None => Shape::Gba,
+        Some(shell) => Shape::Gb(shell),
+    });
+    let (x, y, w, h) = s.label;
+    (
+        x as f32 / s.w as f32,
+        y as f32 / s.h as f32,
+        w as f32 / s.w as f32,
+        h as f32 / s.h as f32,
+    )
+}
+
 fn shape_of(cart: &Cart) -> Shape {
     match gb_shell_of(cart) {
         None => Shape::Gba,

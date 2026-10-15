@@ -3,7 +3,9 @@ use slot_store::{Cart, Platform};
 use std::sync::OnceLock;
 
 use crate::board::{board_in, Placed};
-use crate::cart::{cart_box, gb_shell_of, is_clear, label_colour, label_text, CART_H, CART_W};
+use crate::cart::{
+    cart_box, gb_shell_of, is_clear, label_colour, label_rect, label_text, CART_H, CART_W,
+};
 use crate::hud::Millis;
 use crate::silhouette::GbShell;
 use crate::slot_chrome::{draw_empty_slot, MOUTH_H};
@@ -31,6 +33,10 @@ const PART: f32 = 130.0;
 const SLOTS: i32 = 3;
 
 pub const REPEAT_DELAY_MS: Millis = 400;
+
+pub const STAR_SCALE: u32 = 2;
+pub const STAR_INK: [u8; 3] = [0xf6, 0xc3, 0x2c];
+const STAR_INSET: f32 = 5.0;
 const REPEAT_MS: [Millis; 4] = [110, 85, 65, 50];
 
 pub fn repeat_gap(fired: usize) -> Millis {
@@ -51,6 +57,8 @@ pub struct Shelf {
     gbc_backing: Option<TexId>,
     shells: Vec<OnceLock<Option<GbShell>>>,
     clears: Vec<OnceLock<bool>>,
+    starred: Vec<bool>,
+    star: Option<(TexId, f32, f32)>,
     ride: f32,
     vel: f32,
     held: Option<(i32, Millis, usize)>,
@@ -63,6 +71,8 @@ impl Shelf {
             clears: carts.iter().map(|_| OnceLock::new()).collect(),
             faces: vec![None; carts.len()],
             interiors: vec![None; carts.len()],
+            starred: vec![false; carts.len()],
+            star: None,
             carts,
             index: 0,
             scroll: 0.0,
@@ -103,6 +113,7 @@ impl Shelf {
         self.clears = carts.iter().map(|_| OnceLock::new()).collect();
         self.faces = vec![None; carts.len()];
         self.interiors = vec![None; carts.len()];
+        self.starred = vec![false; carts.len()];
         self.carts = carts;
         self.held = None;
         self.select(0);
@@ -114,6 +125,14 @@ impl Shelf {
         self.scroll = i as f32;
         self.ride = i as f32;
         self.vel = 0.0;
+    }
+
+    pub fn set_star(&mut self, face: TexId, w: u32, h: u32) {
+        self.star = Some((face, w as f32, h as f32));
+    }
+
+    pub fn mark_starred(&mut self, starred: impl Fn(&Cart) -> bool) {
+        self.starred = self.carts.iter().map(starred).collect();
     }
 
     pub fn set_shadow(&mut self, face: TexId) {
@@ -519,6 +538,17 @@ impl Shelf {
                     }
                 }
             });
+            if let (Some(true), Some((tex, sw, sh))) = (self.starred.get(i), self.star) {
+                let (lx, ly, lw, _) = label_rect(self.shell(i));
+                out.push(Draw::Tex {
+                    x: (x + (lx + lw) * w - sw - STAR_INSET).round(),
+                    y: (y + ly * h + STAR_INSET).round(),
+                    w: sw,
+                    h: sh,
+                    tex,
+                    alpha: alpha * dim,
+                });
+            }
         }
     }
 }

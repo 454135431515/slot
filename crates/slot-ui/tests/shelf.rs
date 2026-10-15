@@ -2,7 +2,7 @@ use slot_power::{Battery, Charge};
 use slot_store::{Cart, Platform};
 use slot_ui::{
     draw_footer, footer_ink, label_colour, rest_y, Canvas, Draw, GbShell, Printed, Shelf, TexId,
-    CART_W, GB_CART_H, GB_CART_W, OUT_W,
+    CART_H, CART_W, GB_CART_H, GB_CART_W, LABEL_W, LABEL_X, LABEL_Y, OUT_W,
 };
 
 fn shelf_with(n: usize) -> Shelf {
@@ -1243,4 +1243,37 @@ fn a_mixed_row_does_not_jump_when_the_selection_moves() {
             "cart {i} jumped from {b:?} to {a:?} the moment the selection moved"
         );
     }
+}
+
+#[test]
+fn only_a_starred_cart_wears_the_star_in_its_label_top_right_corner() {
+    let star = TexId::from_raw(9);
+    let mut s = shelf_with(3);
+    s.set_star(star, 22, 22);
+    s.mark_starred(|c| c.stem == "Game 1");
+    s.select(1);
+    settle(&mut s);
+    let mut out = Vec::new();
+    s.draw_row(Canvas::FRAMED, None, 0.0, 0.0, 1.0, &mut out);
+    let stars: Vec<(f32, f32)> = out
+        .iter()
+        .filter_map(|d| match *d {
+            Draw::Tex { x, y, w, tex, .. } if tex == star => Some((x + w, y)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(stars.len(), 1, "{out:?}");
+    let (right, top) = stars[0];
+    let x0 = 360.0 - CART_W as f32 / 2.0;
+    let y0 = rest_y(CART_H as f32);
+    let (lx, ly) = (x0 + LABEL_X as f32, y0 + LABEL_Y as f32);
+    let label_right = lx + LABEL_W as f32;
+    assert!(
+        right <= label_right && right > label_right - 16.0,
+        "star right edge {right}, label right {label_right}"
+    );
+    assert!(
+        top >= ly && top < ly + 16.0,
+        "star top {top}, label top {ly}"
+    );
 }
