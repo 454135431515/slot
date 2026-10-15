@@ -7,9 +7,9 @@ use slot_input::{Action, Btn, MENU_DOUBLE_TAP_MS, MUTE_CHORD_MS};
 use slot_power::{Battery, Charge, LedState, LidPolicy, Power};
 use slot_retro::LinkChannel;
 use slot_store::{
-    format_stamp, read_slot_state, scan, write_slot_state, Cart, Core, GbPalette, Platform, Shader,
-    SlotState, StateEntry, StateRing, WallpaperPick, WallpaperTint, BLUE_LIGHT_MAX, BRIGHTNESS_MAX,
-    FF_SPEEDS, RING_MAX, RUN_AHEAD_MAX, VOLUME_MAX,
+    format_stamp, read_slot_state, scan, write_slot_state, Cart, Core, GbPalette, Platform, Recent,
+    Shader, SlotState, StateEntry, StateRing, WallpaperPick, WallpaperTint, BLUE_LIGHT_MAX,
+    BRIGHTNESS_MAX, FF_SPEEDS, RING_MAX, RUN_AHEAD_MAX, VOLUME_MAX,
 };
 use slot_ui::{
     board_from, board_x, board_zoom, draw_empty_slot, draw_footer, draw_ground, draw_slot_name,
@@ -276,6 +276,14 @@ impl Rack {
         match self {
             Rack::Of(p) => Some(p),
             Rack::Recents | Rack::Favorites => None,
+        }
+    }
+
+    fn key(self) -> String {
+        match self {
+            Rack::Recents => "recents".into(),
+            Rack::Favorites => "favorites".into(),
+            Rack::Of(p) => p.dir_name().to_ascii_lowercase(),
         }
     }
 
@@ -553,7 +561,10 @@ impl App {
         app.state = read_slot_state(root);
         app.restock_recents();
         app.restock_favorites();
-        if !app.shelves[RECENTS_AT].1.carts.is_empty() {
+        if let Some((at, i)) = app.remembered_seat() {
+            app.shelf_at = at;
+            app.shelves[at].1.select(i);
+        } else if !app.shelves[RECENTS_AT].1.carts.is_empty() {
             app.shelf_at = RECENTS_AT;
         }
         if app.state.clock_set {
@@ -570,7 +581,14 @@ impl App {
         } else {
             let stem = self.state.cart.clone();
             let platform = self.state.cart_platform;
-            stem.and_then(|stem| self.seat_of(&stem, platform))
+            stem.and_then(|stem| {
+                let shelf = &self.shelf().carts;
+                let here = shelf
+                    .iter()
+                    .position(|c| c.stem == stem && platform.is_none_or(|p| c.platform == p));
+                here.map(|i| (self.shelf_at, i))
+                    .or_else(|| self.seat_of(&stem, platform))
+            })
         };
         self.phase = Phase::Shelf;
         match seated {
@@ -700,6 +718,30 @@ impl App {
         (1..n)
             .map(|step| (self.shelf_at as i32 + by * step).rem_euclid(n) as usize)
             .find(|at| !self.shelves[*at].1.carts.is_empty())
+    }
+
+    fn remembered_seat(&self) -> Option<(usize, usize)> {
+        let key = self.state.shelf.as_deref()?;
+        let cart = self.state.shelf_cart.as_ref()?;
+        let at = self.shelves.iter().position(|(r, _)| r.key() == key)?;
+        let i = self.shelves[at]
+            .1
+            .carts
+            .iter()
+            .position(|c| c.platform == cart.platform && c.stem == cart.stem)?;
+        Some((at, i))
+    }
+
+    fn remember_shelf(&mut self) {
+        let Some(cart) = self.shelf().carts.get(self.shelf().index) else {
+            return;
+        };
+        self.state.shelf_cart = Some(Recent {
+            platform: cart.platform,
+            stem: cart.stem.clone(),
+        });
+        self.state.shelf = Some(self.shelves[self.shelf_at].0.key());
+        self.persist();
     }
 
     fn seat_of(&self, stem: &str, platform: Option<Platform>) -> Option<(usize, usize)> {
@@ -3492,6 +3534,7 @@ impl App {
                 self.close_game_menu();
                 match PowerChoice::ALL[index] {
                     PowerChoice::Restart => {
+                        self.remember_shelf();
                         self.restarting = true;
                         self.act_at = self.now() + SHUTDOWN_SHOW_MS;
                         self.set_led(LedState::Off);
@@ -3862,6 +3905,7 @@ impl App {
             self.end_link();
         }
         self.close_game_menu();
+        self.remember_shelf();
         self.powering_off = true;
         self.act_at = self.now() + SHUTDOWN_SHOW_MS;
         self.set_led(LedState::Off);

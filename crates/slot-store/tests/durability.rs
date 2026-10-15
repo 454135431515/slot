@@ -2,8 +2,8 @@ mod common;
 
 use common::tmp_root;
 use slot_store::{
-    atomic_write, read_slot_state, write_slot_state, Appearance, GbPalette, Platform, Shader,
-    SlotState, WallpaperPick, WallpaperTint, FF_SPEEDS, FF_SPEED_DEFAULT,
+    atomic_write, read_slot_state, write_slot_state, Appearance, GbPalette, Platform, Recent,
+    Shader, SlotState, WallpaperPick, WallpaperTint, FF_SPEEDS, FF_SPEED_DEFAULT,
 };
 use tempfile::tempdir;
 
@@ -220,6 +220,8 @@ fn a_card_from_before_the_settings_keeps_all_its_values() {
             show_titles: false,
             recents: Vec::new(),
             favorites: Vec::new(),
+            shelf: None,
+            shelf_cart: None,
         }
     );
 }
@@ -245,6 +247,11 @@ fn the_quick_menu_settings_round_trip_as_their_own_lines() {
         wallpaper_tint: WallpaperTint::Medium,
         colour_correction_gbc: true,
         shader_gbc: Shader::Grid,
+        shelf: Some("gba".into()),
+        shelf_cart: Some(Recent {
+            platform: Platform::Gba,
+            stem: "Drill Dozer".into(),
+        }),
         ..SlotState::default()
     };
     write_slot_state(d.path(), &s).unwrap();
@@ -268,6 +275,8 @@ fn the_quick_menu_settings_round_trip_as_their_own_lines() {
         "wallpaper_tint=medium",
         "colour_correction_gbc=1",
         "shader_gbc=grid",
+        "shelf=gba",
+        "shelf_cart=gba/Drill Dozer",
     ] {
         assert!(text.lines().any(|l| l == line), "no {line} in {text:?}");
     }

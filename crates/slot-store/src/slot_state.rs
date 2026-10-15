@@ -184,6 +184,8 @@ pub struct SlotState {
     pub show_titles: bool,
     pub recents: Vec<Recent>,
     pub favorites: Vec<Recent>,
+    pub shelf: Option<String>,
+    pub shelf_cart: Option<Recent>,
 }
 
 impl SlotState {
@@ -301,6 +303,8 @@ impl Default for SlotState {
             show_titles: false,
             recents: Vec::new(),
             favorites: Vec::new(),
+            shelf: None,
+            shelf_cart: None,
         }
     }
 }
@@ -388,6 +392,15 @@ pub fn write_slot_state(root: &Path, s: &SlotState) -> std::io::Result<()> {
     text.push_str(&format!("wallpaper_tint={}\n", s.wallpaper_tint.key()));
     text.push_str(&format!("show_recents={}\n", s.show_recents as u8));
     text.push_str(&format!("show_titles={}\n", s.show_titles as u8));
+    text.push_str(&format!("shelf={}\n", s.shelf.as_deref().unwrap_or("")));
+    text.push_str(&format!(
+        "shelf_cart={}\n",
+        s.shelf_cart.as_ref().map_or(String::new(), |r| format!(
+            "{}/{}",
+            platform_key(r.platform),
+            r.stem
+        ))
+    ));
     atomic_write(&state_path(root), text.as_bytes())?;
     write_list(root, RECENTS_FILE, &s.recents)?;
     write_list(root, FAVORITES_FILE, &s.favorites)
@@ -425,6 +438,8 @@ fn parse(text: &str) -> Option<SlotState> {
     let mut wallpaper_tint = None;
     let mut show_recents = None;
     let mut show_titles = None;
+    let mut shelf = None;
+    let mut shelf_cart = None;
     for line in text.lines().filter(|l| !l.is_empty()) {
         let Some((key, value)) = line.split_once('=') else {
             continue;
@@ -459,6 +474,8 @@ fn parse(text: &str) -> Option<SlotState> {
             "wallpaper_tint" => wallpaper_tint = WallpaperTint::parse(value),
             "show_recents" => show_recents = flag(value),
             "show_titles" => show_titles = flag(value),
+            "shelf" => shelf = Some(value.to_string()).filter(|v| !v.is_empty()),
+            "shelf_cart" => shelf_cart = recent_value(value),
             "shader_gb" => shader_gb = Shader::parse(value).filter(|s| Shader::GB.contains(s)),
             "shader_gbc" => shader_gbc = Shader::parse(value).filter(|s| Shader::GB.contains(s)),
             _ => {}
@@ -506,6 +523,8 @@ fn parse(text: &str) -> Option<SlotState> {
         show_titles: show_titles.unwrap_or(fallback.show_titles),
         recents: Vec::new(),
         favorites: Vec::new(),
+        shelf,
+        shelf_cart,
     })
 }
 
