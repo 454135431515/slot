@@ -2,6 +2,7 @@ use slot::app::{App, Phase, IN_GAME_MENU};
 use slot_gfx::{Canvas, Draw, Layout};
 use slot_input::Action;
 use slot_store::{Cart, Platform};
+use slot_ui::MOUTH_H;
 
 const PANEL_4_3: (u32, u32) = (640, 480);
 const NATIVE: Canvas = Canvas { w: 640.0, h: 480.0 };
@@ -151,6 +152,11 @@ fn the_exit_powers_off_then_drops_the_overlay_then_goes_native() {
             "the overlay moved before the screen was off"
         );
         assert_eq!(a.layout(), Layout::Framed);
+        assert_eq!(
+            a.screen_footer(),
+            0.0,
+            "the framed close scaled around a footer that is not on this canvas"
+        );
         tick(&mut a);
     }
     let mut frames = 0;
@@ -265,6 +271,11 @@ fn exit_from_the_in_game_menu_never_brings_the_overlay_back() {
         assert_eq!(a.layout(), Layout::Native);
         if matches!(a.phase(), Phase::Ejecting { .. }) && a.screen_power() > 0.0 {
             powering += 1;
+            assert_eq!(
+                a.screen_footer(),
+                MOUTH_H,
+                "the picture scaled through the carousel footer"
+            );
             let mut out = Vec::new();
             a.draw(&mut out);
             assert!(
