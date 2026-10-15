@@ -263,6 +263,13 @@ impl Session {
                 }
             }
         }
+        if let Some(blending) = self.app.take_blending() {
+            if let Some(emu) = &self.emu {
+                let (key, value) = crate::core::blend_option(self.app.core(), blending);
+                emu.set_option(key, value);
+                recoloured = true;
+            }
+        }
         if recoloured && self.held() && !self.app.link_active() {
             if let Some(emu) = &self.emu {
                 emu.refresh();
@@ -482,6 +489,7 @@ impl Session {
             platform,
             serial,
             self.app.colour_correction_for(platform),
+            self.app.blending_for(platform),
             palette,
             player,
         );

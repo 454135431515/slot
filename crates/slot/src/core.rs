@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use slot_retro::{LibretroCore, MockCore, RetroCore};
-use slot_store::{Core, GbPalette, Platform};
+use slot_store::{Blending, Core, GbPalette, Platform};
 
 use crate::root;
 
@@ -37,17 +37,21 @@ pub struct Opened {
     pub named: bool,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn open_core(
     root: &Path,
     core: Core,
     platform: Platform,
     serial: &str,
     colour: bool,
+    blending: Blending,
     palette: Option<GbPalette>,
     link: Option<u8>,
 ) -> Opened {
     let paths = candidates(root, core);
-    match open_named(root, core, platform, serial, colour, palette, link, &paths) {
+    match open_named(
+        root, core, platform, serial, colour, blending, palette, link, &paths,
+    ) {
         Some(core) => Opened { core, named: true },
         None => {
             report_missing(core, &paths);
@@ -78,7 +82,18 @@ pub fn open_core_for_palette(
     palette: Option<GbPalette>,
     paths: &[PathBuf],
 ) -> Box<dyn RetroCore> {
-    open_named(root, core, platform, serial, colour, palette, None, paths).unwrap_or_else(|| {
+    open_named(
+        root,
+        core,
+        platform,
+        serial,
+        colour,
+        Blending::Off,
+        palette,
+        None,
+        paths,
+    )
+    .unwrap_or_else(|| {
         report_missing(core, paths);
         Box::new(MockCore::new())
     })
@@ -91,6 +106,7 @@ fn open_named(
     platform: Platform,
     serial: &str,
     colour: bool,
+    blending: Blending,
     palette: Option<GbPalette>,
     link: Option<u8>,
     paths: &[PathBuf],
@@ -110,6 +126,7 @@ fn open_named(
                     serial,
                     root::has_real_bios(root),
                     colour,
+                    blending,
                     palette,
                 );
                 if let Some(player) = link {
@@ -176,6 +193,16 @@ pub fn colour_option(
     }
 }
 
+pub fn blend_option(which: Core, blending: Blending) -> (&'static str, &'static str) {
+    match (which, blending.on(which)) {
+        (Core::Mgba, Blending::Off) => ("mgba_interframe_blending", "OFF"),
+        (Core::Mgba, Blending::Mix) => ("mgba_interframe_blending", "mix"),
+        (Core::Mgba, Blending::Ghosting) => ("mgba_interframe_blending", "lcd_ghosting"),
+        (Core::Gpsp, Blending::Off) => ("gpsp_frame_mixing", "disabled"),
+        (Core::Gpsp, Blending::Mix | Blending::Ghosting) => ("gpsp_frame_mixing", "enabled"),
+    }
+}
+
 pub fn apply_link_options(core: &mut LibretroCore, which: Core, player: u8) {
     if which != Core::Mgba {
         return;
@@ -185,6 +212,7 @@ pub fn apply_link_options(core: &mut LibretroCore, which: Core, player: u8) {
     eprintln!("slot: core: link mode on, player {player}");
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn apply_core_options(
     core: &mut LibretroCore,
     which: Core,
@@ -192,9 +220,12 @@ pub fn apply_core_options(
     serial: &str,
     bios: bool,
     colour: bool,
+    blending: Blending,
     palette: Option<GbPalette>,
 ) {
     core.set_option(&format!("{}_frameskip", which.as_str()), "auto");
+    let (key, value) = blend_option(which, blending);
+    core.set_option(key, value);
     if which == Core::Mgba {
         core.set_option("mgba_sgb_borders", "OFF");
         core.set_option("mgba_force_gbp", "ON");

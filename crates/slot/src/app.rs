@@ -344,6 +344,7 @@ pub struct App {
     snapshot: Option<Box<dyn Snapshot>>,
     core: Core,
     colour_pending: Option<bool>,
+    blending_pending: Option<Blending>,
     palette_live: bool,
     palette_pending: Option<GbPalette>,
     link_player: Option<u8>,
@@ -508,6 +509,7 @@ impl App {
             snapshot: None,
             core: Core::default(),
             colour_pending: None,
+            blending_pending: None,
             palette_live: false,
             palette_pending: None,
             link_player: None,
@@ -1742,6 +1744,10 @@ impl App {
         self.colour_pending.take()
     }
 
+    pub fn take_blending(&mut self) -> Option<Blending> {
+        self.blending_pending.take()
+    }
+
     pub fn gb_palette(&self) -> Option<GbPalette> {
         self.state.gb_palettes.then_some(self.state.gb_palette)
     }
@@ -2089,6 +2095,7 @@ impl App {
                 Platform::Gb => self.state.blending_gb = to,
                 Platform::Gbc => self.state.blending_gbc = to,
             }
+            self.blending_pending = Some(self.blending_in_play());
             self.persist();
             return;
         }
@@ -2177,9 +2184,18 @@ impl App {
             QuickRow::Turbo => s.turbo = !s.turbo,
             QuickRow::Rewind => s.rewind = !s.rewind,
             QuickRow::GbPalettes => s.gb_palettes = !s.gb_palettes,
-            QuickRow::GbaBlending => s.blending_gba = s.blending_gba.step(&Blending::MGBA, right),
-            QuickRow::GbcBlending => s.blending_gbc = s.blending_gbc.step(&Blending::MGBA, right),
-            QuickRow::GbBlending => s.blending_gb = s.blending_gb.step(&Blending::MGBA, right),
+            QuickRow::GbaBlending => {
+                s.blending_gba = s.blending_gba.step(&Blending::MGBA, right);
+                self.blending_pending = Some(self.blending_in_play());
+            }
+            QuickRow::GbcBlending => {
+                s.blending_gbc = s.blending_gbc.step(&Blending::MGBA, right);
+                self.blending_pending = Some(self.blending_in_play());
+            }
+            QuickRow::GbBlending => {
+                s.blending_gb = s.blending_gb.step(&Blending::MGBA, right);
+                self.blending_pending = Some(self.blending_in_play());
+            }
             QuickRow::RunAhead => {
                 let n = RUN_AHEAD_MAX + 1;
                 s.runahead = (s.runahead + if right { 1 } else { n - 1 }) % n;

@@ -545,7 +545,16 @@ fn on_mgba_with_local_roms_the_ring_gets_as_much_sound_as_off_at_every_setting()
     let open = |platform: Platform| -> Box<dyn RetroCore> {
         let mut core = LibretroCore::open_with(&dylib, root.path(), root.path())
             .expect("the vendored core would not open, is another one still running?");
-        apply_core_options(&mut core, Core::Mgba, platform, "auto", false, false, None);
+        apply_core_options(
+            &mut core,
+            Core::Mgba,
+            platform,
+            "auto",
+            false,
+            false,
+            slot_store::Blending::Off,
+            None,
+        );
         Box::new(core)
     };
     for (platform, rom) in roms {
