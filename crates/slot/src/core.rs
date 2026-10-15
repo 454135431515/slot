@@ -285,6 +285,40 @@ mod tests {
     }
 
     #[test]
+    fn each_core_spells_frame_blending_its_own_way() {
+        for (which, blending, want) in [
+            (
+                Core::Mgba,
+                Blending::Off,
+                ("mgba_interframe_blending", "OFF"),
+            ),
+            (
+                Core::Mgba,
+                Blending::Mix,
+                ("mgba_interframe_blending", "mix"),
+            ),
+            (
+                Core::Mgba,
+                Blending::Ghosting,
+                ("mgba_interframe_blending", "lcd_ghosting"),
+            ),
+            (Core::Gpsp, Blending::Off, ("gpsp_frame_mixing", "disabled")),
+            (Core::Gpsp, Blending::Mix, ("gpsp_frame_mixing", "enabled")),
+            (
+                Core::Gpsp,
+                Blending::Ghosting,
+                ("gpsp_frame_mixing", "enabled"),
+            ),
+        ] {
+            assert_eq!(
+                blend_option(which, blending),
+                want,
+                "{which:?} {blending:?}"
+            );
+        }
+    }
+
+    #[test]
     fn mgba_uses_gbc_correction_for_game_boy_games() {
         assert_eq!(
             colour_option(Core::Mgba, Platform::Gb, true),

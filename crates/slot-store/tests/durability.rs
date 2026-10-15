@@ -568,3 +568,36 @@ fn a_card_from_before_the_gbc_split_starts_gbc_from_the_gb_c_settings() {
         "the GB settings overrode GBC's own"
     );
 }
+
+#[test]
+fn a_frame_blending_the_rows_do_not_offer_reads_as_off() {
+    let d = tmp_root();
+    let s = SlotState {
+        clock_set: true,
+        blending_gba: Blending::Mix,
+        blending_gb: Blending::Mix,
+        blending_gbc: Blending::Ghosting,
+        ..SlotState::default()
+    };
+    write_slot_state(d.path(), &s).unwrap();
+    let path = d.path().join("Config/slot.state");
+    let text = std::fs::read_to_string(&path).unwrap();
+    std::fs::write(
+        &path,
+        text.replace("blending_gba=mix", "blending_gba=lcd_ghosting_fast")
+            .replace("blending_gb=mix", "blending_gb=9"),
+    )
+    .unwrap();
+    let read = read_slot_state(d.path());
+    assert_eq!(read.blending_gba, Blending::Off);
+    assert_eq!(read.blending_gb, Blending::Off);
+    assert_eq!(
+        read.blending_gbc,
+        Blending::Ghosting,
+        "a good line was thrown away with the bad ones"
+    );
+    assert!(
+        read.clock_set,
+        "the rest of the card was thrown away with it"
+    );
+}
