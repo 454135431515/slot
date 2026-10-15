@@ -14,7 +14,6 @@ use super::trace;
 const DEV: &str = "/dev/input";
 const SYS: &str = "/sys/class/input";
 const PSY: &str = "/sys/class/power_supply";
-const BASEOS_RELEASE: &str = "/etc/baseos-release";
 
 const LID_POLL_MS: Millis = 150;
 
@@ -28,30 +27,13 @@ pub struct DeviceInput {
 
 impl DeviceInput {
     pub fn open(root: &Path) -> Self {
-        DeviceInput::open_with_baseos_release(
-            Path::new(DEV),
-            Path::new(SYS),
-            Path::new(BASEOS_RELEASE),
-            root,
-            trace::enabled(),
-        )
+        DeviceInput::open_in(Path::new(DEV), Path::new(SYS), root, trace::enabled())
     }
 
     pub fn open_in(dev: &Path, sys: &Path, root: &Path, trace: bool) -> Self {
-        DeviceInput::open_with_baseos_release(dev, sys, Path::new(BASEOS_RELEASE), root, trace)
-    }
-
-    fn open_with_baseos_release(
-        dev: &Path,
-        sys: &Path,
-        release: &Path,
-        root: &Path,
-        trace: bool,
-    ) -> Self {
         let trace = trace.then(|| Trace::start(root, dev, sys)).flatten();
-        let target = baseos_target(release);
-        let menu_dpad_display = target.as_deref() == Some("rg34xx");
-        DeviceInput::open_traced(dev, sys, menu_dpad_display, trace)
+        let target = std::env::var("BASEOS_TARGET").ok();
+        DeviceInput::open_traced(dev, sys, menu_dpad_display(target.as_deref()), trace)
     }
 
     fn open_traced(
@@ -244,16 +226,8 @@ fn find_hall(psy: &Path) -> Option<PathBuf> {
         .find(|p| p.is_file())
 }
 
-fn baseos_target(release: &Path) -> Option<String> {
-    std::fs::read_to_string(release)
-        .ok()?
-        .lines()
-        .find_map(|line| {
-            line.strip_prefix("BASEOS_TARGET=")
-                .map(str::trim)
-                .filter(|target| !target.is_empty())
-                .map(ToOwned::to_owned)
-        })
+fn menu_dpad_display(target: Option<&str>) -> bool {
+    target.map(str::trim) == Some("rg34xx")
 }
 
 #[cfg(test)]
@@ -262,20 +236,15 @@ mod tests {
 
     #[test]
     fn only_the_rg34xx_baseos_target_enables_the_menu_dpad_display_gesture() {
-        let d = tempfile::tempdir().unwrap();
-        let release = d.path().join("baseos-release");
         for (target, want) in [
-            ("rg34xx", true),
-            ("rg34xxsp", false),
-            ("rg35xxsp", false),
-            ("rg35xxh", false),
+            (Some("rg34xx"), true),
+            (Some("rg34xxsp"), false),
+            (Some("rg35xxsp"), false),
+            (Some("rg35xxh"), false),
+            (Some(""), false),
+            (None, false),
         ] {
-            std::fs::write(&release, format!("BASEOS_TARGET={target}\n")).unwrap();
-            assert_eq!(
-                baseos_target(&release).as_deref() == Some("rg34xx"),
-                want,
-                "{target}"
-            );
+            assert_eq!(menu_dpad_display(target), want, "{target:?}");
         }
     }
 }
