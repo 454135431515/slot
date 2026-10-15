@@ -361,6 +361,7 @@ pub struct App {
     legend_faces: Vec<TexId>,
     undo_face: Option<TexId>,
     clock_faces: Option<(TexId, TexId)>,
+    clock_back: Option<(TexId, u32)>,
     quick_menu_faces: Option<QuickMenuFaces>,
     quick_clock_faces: Option<[(TexId, u32, u32); 2]>,
     quick_wallpaper_faces: Option<[(TexId, u32, u32); 2]>,
@@ -526,6 +527,7 @@ impl App {
             legend_faces: Vec::new(),
             undo_face: None,
             clock_faces: None,
+            clock_back: None,
             quick_menu_faces: None,
             quick_clock_faces: None,
             quick_wallpaper_faces: None,
@@ -1154,6 +1156,10 @@ impl App {
 
     pub fn set_clock_faces(&mut self, line: TexId, hint: TexId) {
         self.clock_faces = Some((line, hint));
+    }
+
+    pub fn set_clock_back_face(&mut self, back: (TexId, u32)) {
+        self.clock_back = Some(back);
     }
 
     pub fn set_star_face(&mut self, face: TexId, w: u32, h: u32) {
@@ -2972,11 +2978,7 @@ impl App {
                     Some((line, hint)) => (Some(line), Some(hint)),
                     None => (None, None),
                 };
-                let back = self
-                    .quick_menu_faces
-                    .as_ref()
-                    .filter(|_| *from_menu)
-                    .map(|f| f.legend[0]);
+                let back = self.clock_back.filter(|_| *from_menu);
                 picker.draw(self.canvas(), line, hint, back, out);
                 return;
             }

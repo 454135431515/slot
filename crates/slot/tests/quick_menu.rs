@@ -875,12 +875,13 @@ fn only_the_clock_from_the_menu_offers_b_back() {
     let (_d, mut a, _) = on_carousel();
     fake_faces(&mut a);
     a.set_clock_faces(TexId::from_raw(600), TexId::from_raw(601));
+    a.set_clock_back_face((TexId::from_raw(602), 40));
     open_at(&mut a, QuickRow::DateTime);
     press(&mut a, Btn::A);
     let out = frame(&a);
     assert!(drawn(&out, 601), "the clock lost its own key");
     assert!(
-        drawn(&out, 400),
+        drawn(&out, 602),
         "the clock from the menu does not offer B BACK"
     );
 
@@ -888,10 +889,11 @@ fn only_the_clock_from_the_menu_offers_b_back() {
     let (mut first, _) = app_booting_with_clock(d.path());
     fake_faces(&mut first);
     first.set_clock_faces(TexId::from_raw(600), TexId::from_raw(601));
+    first.set_clock_back_face((TexId::from_raw(602), 40));
     let out = frame(&first);
     assert!(drawn(&out, 601), "the first boot clock lost its key");
     assert!(
-        !drawn(&out, 400),
+        !drawn(&out, 602),
         "the first boot clock offers a way back it does not have"
     );
 }

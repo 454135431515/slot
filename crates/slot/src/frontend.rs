@@ -241,6 +241,9 @@ impl Frontend {
         self.session.app_mut().set_legend_faces(legend);
         let hint = set_clock_hint_face();
         self.clocks.hint = Some(compositor.create_texture(hint.w, hint.h, &hint.rgba));
+        let back = hint_face("B", "Back");
+        let tex = compositor.create_texture(back.w, back.h, &back.rgba);
+        self.session.app_mut().set_clock_back_face((tex, back.w));
         let star = slot_ui::star_face(slot_ui::STAR_SCALE, slot_ui::STAR_INK);
         let id = compositor.create_texture_nearest(star.w, star.h, &star.rgba);
         self.session.app_mut().set_star_face(id, star.w, star.h);
