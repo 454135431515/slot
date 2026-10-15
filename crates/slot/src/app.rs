@@ -2537,6 +2537,14 @@ impl App {
                 self.footer_row = Some(*row);
                 return;
             }
+            Phase::Ejecting { .. } => {
+                self.footer = match self.screen > 0.0 {
+                    true => (self.footer + dt / POWER_OFF_S).min(1.0),
+                    false => 1.0,
+                };
+                self.footer_row = None;
+                return;
+            }
             _ => {
                 self.footer = 0.0;
                 self.footer_row = None;
@@ -2573,7 +2581,7 @@ impl App {
             && self.screen > 0.0
             && self.footer_on_carousel_canvas()
         {
-            MOUTH_H
+            MOUTH_H * ease(self.footer)
         } else {
             0.0
         }
@@ -3203,6 +3211,7 @@ impl App {
         if !self.footer_on_carousel_canvas() {
             return;
         }
+        let start = out.len();
         // The framed power-off paints black and the picture, and never the slot. The other
         // close already draws the seated cart through the chrome.
         if self.framed_panel() && self.screen > 0.0 {
@@ -3217,6 +3226,7 @@ impl App {
             footer_ink(self.light()),
             out,
         );
+        shift_down(&mut out[start..], self.menu_footer_offset());
     }
 
     fn draw_seated_mouth(&self, stem: &str, out: &mut Vec<Draw>) {

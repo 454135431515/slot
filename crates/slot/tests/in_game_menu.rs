@@ -471,10 +471,12 @@ fn a_value_row_puts_change_on_the_right_of_the_footer() {
 }
 
 #[test]
-fn closing_the_game_keeps_the_footer_still_above_the_scaling_picture() {
+fn closing_the_game_from_the_menu_keeps_the_footer_still_above_the_scaling_picture() {
     let (_d, mut a) = playing();
     paint_carts(&mut a);
     assert_eq!(a.screen_footer(), 0.0);
+    a.apply(Action::QuickMenu);
+    frames(&mut a, 34);
     a.apply(Action::Eject);
     let mut seen = 0.0;
     let mut y: Option<f32> = None;
@@ -502,5 +504,39 @@ fn closing_the_game_keeps_the_footer_still_above_the_scaling_picture() {
     assert!(
         parked >= OUT_H_F - MOUTH_H - 1.0,
         "the cart left the carousel footer at {parked}"
+    );
+}
+
+#[test]
+fn a_hotkey_eject_slides_the_footer_up_while_the_picture_closes() {
+    let (_d, mut a) = playing();
+    paint_carts(&mut a);
+    a.apply(Action::Eject);
+    let mut seen = Vec::new();
+    for _ in 0..40 {
+        a.update(1.0 / 60.0);
+        if a.screen_power() == 0.0 {
+            break;
+        }
+        seen.push(a.screen_footer());
+    }
+    assert!(
+        seen.len() > 2,
+        "the picture closed in {} frames",
+        seen.len()
+    );
+    assert!(
+        seen[0] < MOUTH_H / 2.0,
+        "the footer jumped up to {} on the first frame",
+        seen[0]
+    );
+    assert!(
+        seen.windows(2).all(|w| w[1] >= w[0]),
+        "the footer did not rise steadily: {seen:?}"
+    );
+    let last = *seen.last().unwrap();
+    assert!(
+        last > MOUTH_H * 0.8,
+        "the footer was only at {last} when the picture went"
     );
 }
