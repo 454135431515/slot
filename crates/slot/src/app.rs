@@ -3169,7 +3169,11 @@ impl App {
 
     fn draw_menu_footer(&self, out: &mut Vec<Draw>) {
         let carousel = matches!(self.phase, Phase::QuickMenu { .. });
-        let dy = if carousel { 0.0 } else { self.menu_footer_offset() };
+        let dy = if carousel {
+            0.0
+        } else {
+            self.menu_footer_offset()
+        };
         let start = out.len();
         let row = match &self.phase {
             Phase::Playing { cart } if self.footer > 0.0 => {

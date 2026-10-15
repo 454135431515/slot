@@ -477,7 +477,7 @@ fn closing_the_game_keeps_the_footer_still_above_the_scaling_picture() {
     assert_eq!(a.screen_footer(), 0.0);
     a.apply(Action::Eject);
     let mut seen = 0.0;
-    let mut y = None;
+    let mut y: Option<f32> = None;
     for _ in 0..40 {
         if a.screen_power() == 0.0 {
             break;

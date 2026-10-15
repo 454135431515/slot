@@ -21,10 +21,6 @@ pub fn screen_brightness(t: f32) -> f32 {
     1.0 + OVERSHOOT * left * left
 }
 
-pub fn screen_rect(t: f32) -> (f32, f32, f32, f32) {
-    screen_rect_above(t, 0.0)
-}
-
 /// The picture's place while a footer of `footer` px stays put along the bottom.
 /// The scale is centred in the space above that strip, so the strip is not part of it.
 pub fn screen_rect_above(t: f32, footer: f32) -> (f32, f32, f32, f32) {
