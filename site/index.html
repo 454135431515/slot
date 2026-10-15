@@ -458,10 +458,10 @@
     <h2>Anticipated Questions Answered</h2>
     <nav class="subtabs" role="tablist" aria-label="Anticipated questions">
       <button class="subtab" role="tab" id="t-faq" aria-controls="faq" aria-selected="true">The basics</button>
-      <button class="subtab" role="tab" id="t-faq-carts" aria-controls="faq-carts" aria-selected="false" tabindex="-1">Your carts</button>
       <button class="subtab" role="tab" id="t-faq-games" aria-controls="faq-games" aria-selected="false" tabindex="-1">Your games</button>
+      <button class="subtab" role="tab" id="t-faq-shelf" aria-controls="faq-shelf" aria-selected="false" tabindex="-1">Your shelf</button>
       <button class="subtab" role="tab" id="t-faq-linking" aria-controls="faq-linking" aria-selected="false" tabindex="-1">Linking</button>
-      <button class="subtab" role="tab" id="t-faq-contributing" aria-controls="faq-contributing" aria-selected="false" tabindex="-1">Contributing</button>
+      <button class="subtab" role="tab" id="t-faq-requests" aria-controls="faq-requests" aria-selected="false" tabindex="-1">Common Requests</button>
     </nav>
 
     <div class="subpanel" id="faq" role="tabpanel" aria-labelledby="t-faq">
@@ -481,41 +481,11 @@
               </tbody>
             </table>
             <p>If you have one of the untested devices, or have tried slot on a device not listed, please <a href="https://github.com/BrandonKowalski/slot/issues">open an issue on GitHub</a> and let me know how it went.</p>
-            <p>RG28XX support was contributed by <a href="https://github.com/GamerAnim">GamerAnim</a>. The RG28XX has its panel mounted in a portrait orientation. slot turns the picture to fit it, but on some units it comes out upside down. If yours does, open <code>System/launch_frontend.sh</code> on the SD card and add <code>export SLOT_ROTATE=ccw</code> just above the last line:</p>
-            <pre><code>export SLOT_ROTATE=ccw
-exec /lib/ld-linux-aarch64.so.1 "$SYS/slot" &gt; "$LOGS/slot.log" 2&gt;&amp;1</code></pre>
           </dd>
         </div>
         <div class="qa">
           <dt>Will slot run anything other than GBA?</dt>
           <dd>Yes. You can bring your GB and GBC carts to the party.</dd>
-        </div>
-        <div class="qa">
-          <dt>This is almost perfect but needs more systems. Will you add them?</dt>
-          <dd>No. I want to recreate the feeling I had playing my GBA SP as a child.</dd>
-        </div>
-        <div class="qa">
-          <dt>RetroAchievements and cheats would make this perfect. Will you add them?</dt>
-          <dd>No. These are two features I do not want to support. If they matter to you, a few of the forks have added them.</dd>
-        </div>
-        <div class="qa">
-          <dt>Does slot allow you to pair Bluetooth headphones?</dt>
-          <dd>No. Use the headphone jack.</dd>
-        </div>
-      </dl>
-    </div>
-
-    <div class="subpanel" id="faq-carts" role="tabpanel" aria-labelledby="t-faq-carts" hidden>
-      <dl>
-        <div class="qa">
-          <dt>How do I add cart labels?</dt>
-          <dd>Drop a <code>.png</code> into the <code>Labels/</code> folder for that platform, named
-              after the ROM. For example, <code>Labels/GBA/Metroid Fusion.png</code> matches
-              <code>Games/GBA/Metroid Fusion.gba</code>.</dd>
-        </div>
-        <div class="qa">
-          <dt>Do I have to craft them by hand?</dt>
-          <dd>Nah! You can use the <a href="https://studio.slot-cfw.fyi">slot Cart Studio</a>.</dd>
         </div>
       </dl>
     </div>
@@ -527,6 +497,10 @@ exec /lib/ld-linux-aarch64.so.1 "$SYS/slot" &gt; "$LOGS/slot.log" 2&gt;&amp;1</c
           <dd>Each platform has its own folder under <code>Games/</code>.</dd>
         </div>
         <div class="qa">
+          <dt>Where do the games come from?</dt>
+          <dd>Your own legally obtained backups.</dd>
+        </div>
+        <div class="qa">
           <dt>Is there a BIOS boot animation on game start?</dt>
           <dd>Yes! Drop the following files you legally obtained into <code>BIOS/</code>.
             <ul>
@@ -536,9 +510,30 @@ exec /lib/ld-linux-aarch64.so.1 "$SYS/slot" &gt; "$LOGS/slot.log" 2&gt;&amp;1</c
             </ul>
           </dd>
         </div>
+      </dl>
+    </div>
+
+    <div class="subpanel" id="faq-shelf" role="tabpanel" aria-labelledby="t-faq-shelf" hidden>
+      <dl>
         <div class="qa">
-          <dt>Where do the games come from?</dt>
-          <dd>Your own legally obtained backups.</dd>
+          <dt>How do I add cart labels?</dt>
+          <dd>Drop a <code>.png</code> into the <code>Labels/</code> folder for that platform, named
+              after the ROM. For example, <code>Labels/GBA/Metroid Fusion.png</code> matches
+              <code>Games/GBA/Metroid Fusion.gba</code>.</dd>
+        </div>
+        <div class="qa">
+          <dt>Do I have to craft them by hand?</dt>
+          <dd>Nah! You can use the <a href="https://studio.slot-cfw.fyi">slot Cart Studio</a>.</dd>
+        </div>
+        <div class="qa">
+          <dt>Can I see the game's name on the shelf?</dt>
+          <dd>Turn on Game Titles in the General settings.</dd>
+        </div>
+        <div class="qa">
+          <dt>Can I use my own wallpaper?</dt>
+          <dd>
+            <p>Drop a <code>.png</code> into <code>Wallpapers/</code> and pick it under Wallpaper in the General settings.</p>
+          </dd>
         </div>
       </dl>
     </div>
@@ -548,7 +543,7 @@ exec /lib/ld-linux-aarch64.so.1 "$SYS/slot" &gt; "$LOGS/slot.log" 2&gt;&amp;1</c
         <div class="qa">
           <dt>Can I trade Pokémon with a friend?</dt>
           <dd>
-            <p>Yes, with a second RG SP running <code>slot</code>.</p>
+            <p>Yes, with a second device running <code>slot</code>.</p>
             <p>First, navigate to the game and press <kbd>START</kbd> to open the core selection menu. Pick <code>gpSP</code>.</p>
             <p>While in game, press <span class="chord"><kbd>SELECT</kbd> + <kbd>MENU</kbd></span> and choose <code>LINK</code>.</p>
             <p>One player needs to pick <code>HOST</code> while the other chooses <code>JOIN</code>.</p>
@@ -562,8 +557,20 @@ exec /lib/ld-linux-aarch64.so.1 "$SYS/slot" &gt; "$LOGS/slot.log" 2&gt;&amp;1</c
       </dl>
     </div>
 
-    <div class="subpanel" id="faq-contributing" role="tabpanel" aria-labelledby="t-faq-contributing" hidden>
+    <div class="subpanel" id="faq-requests" role="tabpanel" aria-labelledby="t-faq-requests" hidden>
       <dl>
+        <div class="qa">
+          <dt>This is almost perfect but needs more systems. Will you add them?</dt>
+          <dd>No. I want to recreate the feeling I had playing my GBA SP as a child.</dd>
+        </div>
+        <div class="qa">
+          <dt>RetroAchievements and cheats would make this perfect. Will you add them?</dt>
+          <dd>No. These are two features I do not want to support. If they matter to you, a few of the forks have added them.</dd>
+        </div>
+        <div class="qa">
+          <dt>Does slot allow you to pair Bluetooth headphones?</dt>
+          <dd>No. Use the headphone jack.</dd>
+        </div>
         <div class="qa">
           <dt>Do you accept contributions?</dt>
           <dd>
