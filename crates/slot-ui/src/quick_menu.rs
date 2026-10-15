@@ -49,10 +49,14 @@ pub enum QuickRow {
     GbaBezel,
     ScreenGbc,
     ScreenGb,
+    GbaBlending,
+    GbcBlending,
+    GbBlending,
+    Blending,
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 40] = [
+    pub const ALL: [QuickRow; 44] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Screen,
@@ -93,6 +97,10 @@ impl QuickRow {
         QuickRow::GbaBezel,
         QuickRow::ScreenGbc,
         QuickRow::ScreenGb,
+        QuickRow::GbaBlending,
+        QuickRow::GbcBlending,
+        QuickRow::GbBlending,
+        QuickRow::Blending,
     ];
 
     pub const MAIN: [QuickRow; 4] = [
@@ -114,21 +122,24 @@ impl QuickRow {
     pub const SCREEN: [QuickRow; 3] =
         [QuickRow::ScreenGba, QuickRow::ScreenGbc, QuickRow::ScreenGb];
 
-    pub const SCREEN_GBA: [QuickRow; 3] = [
+    pub const SCREEN_GBA: [QuickRow; 4] = [
         QuickRow::GbaShader,
         QuickRow::GbaColourCorrection,
+        QuickRow::GbaBlending,
         QuickRow::GbaBezel,
     ];
 
-    pub const SCREEN_GBC: [QuickRow; 3] = [
+    pub const SCREEN_GBC: [QuickRow; 4] = [
         QuickRow::GbcShader,
         QuickRow::GbcColourCorrection,
+        QuickRow::GbcBlending,
         QuickRow::GbcBezel,
     ];
 
-    pub const SCREEN_GB: [QuickRow; 4] = [
+    pub const SCREEN_GB: [QuickRow; 5] = [
         QuickRow::GbShader,
         QuickRow::GbColourCorrection,
+        QuickRow::GbBlending,
         QuickRow::GbPalettes,
         QuickRow::GbBezel,
     ];
@@ -152,9 +163,10 @@ impl QuickRow {
 
     pub const SETTINGS: [QuickRow; 2] = [QuickRow::PlayScreen, QuickRow::PlayGameplay];
 
-    pub const PLAY_SCREEN: [QuickRow; 4] = [
+    pub const PLAY_SCREEN: [QuickRow; 5] = [
         QuickRow::Shader,
         QuickRow::ColourCorrection,
+        QuickRow::Blending,
         QuickRow::Palette,
         QuickRow::Bezel,
     ];
@@ -166,14 +178,17 @@ impl QuickRow {
     pub fn page(self) -> &'static [QuickRow] {
         match self {
             QuickRow::ScreenGba | QuickRow::ScreenGbc | QuickRow::ScreenGb => &QuickRow::SCREEN,
-            QuickRow::GbaShader | QuickRow::GbaColourCorrection | QuickRow::GbaBezel => {
-                &QuickRow::SCREEN_GBA
-            }
-            QuickRow::GbcShader | QuickRow::GbcColourCorrection | QuickRow::GbcBezel => {
-                &QuickRow::SCREEN_GBC
-            }
+            QuickRow::GbaShader
+            | QuickRow::GbaColourCorrection
+            | QuickRow::GbaBlending
+            | QuickRow::GbaBezel => &QuickRow::SCREEN_GBA,
+            QuickRow::GbcShader
+            | QuickRow::GbcColourCorrection
+            | QuickRow::GbcBlending
+            | QuickRow::GbcBezel => &QuickRow::SCREEN_GBC,
             QuickRow::GbShader
             | QuickRow::GbColourCorrection
+            | QuickRow::GbBlending
             | QuickRow::GbPalettes
             | QuickRow::GbBezel => &QuickRow::SCREEN_GB,
             QuickRow::FastForward
@@ -193,9 +208,11 @@ impl QuickRow {
                 &QuickRow::PLAY
             }
             QuickRow::PlayScreen | QuickRow::PlayGameplay => &QuickRow::SETTINGS,
-            QuickRow::Shader | QuickRow::ColourCorrection | QuickRow::Palette | QuickRow::Bezel => {
-                &QuickRow::PLAY_SCREEN
-            }
+            QuickRow::Shader
+            | QuickRow::ColourCorrection
+            | QuickRow::Blending
+            | QuickRow::Palette
+            | QuickRow::Bezel => &QuickRow::PLAY_SCREEN,
             _ => &QuickRow::MAIN,
         }
     }
@@ -303,6 +320,10 @@ impl QuickRow {
             QuickRow::GbcBezel => "Bezel",
             QuickRow::GbaBezel => "Bezel",
             QuickRow::Bezel => "Bezel",
+            QuickRow::GbaBlending => "Frame Blending",
+            QuickRow::GbcBlending => "Frame Blending",
+            QuickRow::GbBlending => "Frame Blending",
+            QuickRow::Blending => "Frame Blending",
         }
     }
 
@@ -357,10 +378,12 @@ pub enum QuickValue {
     Low,
     Medium,
     High,
+    Mix,
+    Ghosting,
 }
 
 impl QuickValue {
-    pub const ALL: [QuickValue; 18] = [
+    pub const ALL: [QuickValue; 20] = [
         QuickValue::Speed2,
         QuickValue::Speed3,
         QuickValue::Speed4,
@@ -379,6 +402,8 @@ impl QuickValue {
         QuickValue::Low,
         QuickValue::Medium,
         QuickValue::High,
+        QuickValue::Mix,
+        QuickValue::Ghosting,
     ];
 
     pub fn index(self) -> usize {
@@ -405,6 +430,8 @@ impl QuickValue {
             QuickValue::Low => "25%",
             QuickValue::Medium => "45%",
             QuickValue::High => "65%",
+            QuickValue::Mix => "Mix",
+            QuickValue::Ghosting => "LCD Ghosting",
         }
     }
 

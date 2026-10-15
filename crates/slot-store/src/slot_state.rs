@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::atomic::atomic_write;
+use crate::core::Core;
 use crate::gb_palette::GbPalette;
 use crate::platform::Platform;
 
@@ -227,6 +228,9 @@ pub struct SlotState {
     pub bezel_gba: BezelPick,
     pub bezel_gb: BezelPick,
     pub bezel_gbc: BezelPick,
+    pub blending_gba: Blending,
+    pub blending_gb: Blending,
+    pub blending_gbc: Blending,
     pub recents: Vec<Recent>,
     pub favorites: Vec<Recent>,
     pub shelf: Option<String>,
@@ -313,6 +317,55 @@ impl Shader {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
+pub enum Blending {
+    #[default]
+    Off,
+    Mix,
+    Ghosting,
+}
+
+impl Blending {
+    pub const MGBA: [Blending; 3] = [Blending::Off, Blending::Mix, Blending::Ghosting];
+    pub const GPSP: [Blending; 2] = [Blending::Off, Blending::Mix];
+
+    pub fn choices(core: Core) -> &'static [Blending] {
+        match core {
+            Core::Mgba => &Blending::MGBA,
+            Core::Gpsp => &Blending::GPSP,
+        }
+    }
+
+    pub fn on(self, core: Core) -> Blending {
+        match (core, self) {
+            (Core::Gpsp, Blending::Ghosting) => Blending::Mix,
+            (_, blending) => blending,
+        }
+    }
+
+    pub fn key(self) -> &'static str {
+        match self {
+            Blending::Off => "off",
+            Blending::Mix => "mix",
+            Blending::Ghosting => "ghosting",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Blending> {
+        Blending::MGBA.into_iter().find(|b| b.key() == value)
+    }
+
+    pub fn step(self, choices: &[Blending], right: bool) -> Blending {
+        let n = choices.len();
+        let at = choices.iter().position(|&b| b == self).unwrap_or(0);
+        choices[if right {
+            (at + 1) % n
+        } else {
+            (at + n - 1) % n
+        }]
+    }
+}
+
 impl Default for SlotState {
     fn default() -> Self {
         SlotState {
@@ -349,6 +402,9 @@ impl Default for SlotState {
             bezel_gba: BezelPick::Ags102,
             bezel_gb: BezelPick::Ags102,
             bezel_gbc: BezelPick::Ags102,
+            blending_gba: Blending::Off,
+            blending_gb: Blending::Off,
+            blending_gbc: Blending::Off,
             recents: Vec::new(),
             favorites: Vec::new(),
             shelf: None,
@@ -581,6 +637,9 @@ fn parse(text: &str) -> Option<SlotState> {
         bezel_gba: bezel_gba.unwrap_or(fallback.bezel_gba),
         bezel_gb: bezel_gb.unwrap_or(fallback.bezel_gb),
         bezel_gbc: bezel_gbc.unwrap_or(fallback.bezel_gbc),
+        blending_gba: fallback.blending_gba,
+        blending_gb: fallback.blending_gb,
+        blending_gbc: fallback.blending_gbc,
         recents: Vec::new(),
         favorites: Vec::new(),
         shelf,

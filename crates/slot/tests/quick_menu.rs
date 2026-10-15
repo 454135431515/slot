@@ -399,6 +399,7 @@ fn screen_opens_a_page_of_its_own_and_b_comes_back_to_it() {
     assert_eq!(a.quick_menu(), Some(QuickRow::GbShader));
     for want in [
         QuickRow::GbColourCorrection,
+        QuickRow::GbBlending,
         QuickRow::GbPalettes,
         QuickRow::GbBezel,
         QuickRow::GbShader,

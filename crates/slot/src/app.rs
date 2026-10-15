@@ -7,8 +7,8 @@ use slot_input::{Action, Btn, MENU_DOUBLE_TAP_MS, MUTE_CHORD_MS};
 use slot_power::{Battery, Charge, LedState, LidPolicy, Power};
 use slot_retro::LinkChannel;
 use slot_store::{
-    format_stamp, parse_stamp, read_slot_state, scan, write_slot_state, BezelPick, Cart, Core,
-    GbPalette, Platform, Recent, Shader, SlotState, StateEntry, StateRing, WallpaperPick,
+    format_stamp, parse_stamp, read_slot_state, scan, write_slot_state, BezelPick, Blending, Cart,
+    Core, GbPalette, Platform, Recent, Shader, SlotState, StateEntry, StateRing, WallpaperPick,
     WallpaperTint, BLUE_LIGHT_MAX, BRIGHTNESS_MAX, FF_SPEEDS, RING_MAX, RUN_AHEAD_MAX, VOLUME_MAX,
 };
 use slot_ui::{
@@ -887,6 +887,10 @@ impl App {
                 Some(QuickValue::flag(self.state.colour_correction_gbc))
             }
             QuickRow::GbPalettes => Some(QuickValue::flag(self.state.gb_palettes)),
+            QuickRow::GbaBlending => Some(blending_value(self.state.blending_gba)),
+            QuickRow::GbcBlending => Some(blending_value(self.state.blending_gbc)),
+            QuickRow::GbBlending => Some(blending_value(self.state.blending_gb)),
+            QuickRow::Blending => Some(blending_value(self.blending_in_play())),
             QuickRow::GbaShader => Some(shader_value(self.state.shader_gba)),
             QuickRow::GbShader => Some(shader_value(self.state.shader_gb)),
             QuickRow::GbcShader => Some(shader_value(self.state.shader_gbc)),
@@ -1648,6 +1652,18 @@ impl App {
         self.seated_cart().map_or(self.platform, |c| c.platform)
     }
 
+    pub fn blending_for(&self, platform: Platform) -> Blending {
+        match platform {
+            Platform::Gba => self.state.blending_gba,
+            Platform::Gb => self.state.blending_gb,
+            Platform::Gbc => self.state.blending_gbc,
+        }
+    }
+
+    pub fn blending_in_play(&self) -> Blending {
+        self.blending_for(self.playing_platform()).on(self.core)
+    }
+
     pub fn colour_correction_for(&self, platform: Platform) -> bool {
         match platform {
             Platform::Gba => self.state.colour_correction_gba,
@@ -2052,6 +2068,10 @@ impl App {
             | QuickRow::Shader
             | QuickRow::ColourCorrection
             | QuickRow::Palette
+            | QuickRow::GbaBlending
+            | QuickRow::GbcBlending
+            | QuickRow::GbBlending
+            | QuickRow::Blending
             | QuickRow::GbBezel
             | QuickRow::GbcBezel
             | QuickRow::GbaBezel
@@ -2060,6 +2080,18 @@ impl App {
     }
 
     fn change_setting(&mut self, row: QuickRow, right: bool) {
+        if row == QuickRow::Blending {
+            let to = self
+                .blending_in_play()
+                .step(Blending::choices(self.core), right);
+            match self.playing_platform() {
+                Platform::Gba => self.state.blending_gba = to,
+                Platform::Gb => self.state.blending_gb = to,
+                Platform::Gbc => self.state.blending_gbc = to,
+            }
+            self.persist();
+            return;
+        }
         let row = self.playing_row(row);
         if row == QuickRow::Palette {
             let to = match right {
@@ -2145,6 +2177,9 @@ impl App {
             QuickRow::Turbo => s.turbo = !s.turbo,
             QuickRow::Rewind => s.rewind = !s.rewind,
             QuickRow::GbPalettes => s.gb_palettes = !s.gb_palettes,
+            QuickRow::GbaBlending => s.blending_gba = s.blending_gba.step(&Blending::MGBA, right),
+            QuickRow::GbcBlending => s.blending_gbc = s.blending_gbc.step(&Blending::MGBA, right),
+            QuickRow::GbBlending => s.blending_gb = s.blending_gb.step(&Blending::MGBA, right),
             QuickRow::RunAhead => {
                 let n = RUN_AHEAD_MAX + 1;
                 s.runahead = (s.runahead + if right { 1 } else { n - 1 }) % n;
@@ -2167,6 +2202,7 @@ impl App {
             | QuickRow::PlayGameplay
             | QuickRow::Shader
             | QuickRow::ColourCorrection
+            | QuickRow::Blending
             | QuickRow::Palette
             | QuickRow::ScreenGba
             | QuickRow::ScreenGbc
@@ -4586,6 +4622,14 @@ fn trusted_write(
 
 fn up(level: u8, step: u8, max: u8) -> u8 {
     level.saturating_add(step).min(max)
+}
+
+fn blending_value(blending: Blending) -> QuickValue {
+    match blending {
+        Blending::Off => QuickValue::Off,
+        Blending::Mix => QuickValue::Mix,
+        Blending::Ghosting => QuickValue::Ghosting,
+    }
 }
 
 fn shader_value(shader: Shader) -> QuickValue {
