@@ -433,6 +433,7 @@ impl Frontend {
     }
 
     pub fn render(&mut self, compositor: &mut Compositor, window: (u32, u32)) {
+        self.session.app_mut().set_panel(window);
         compositor.fit(window);
         self.compose(compositor);
         compositor.end_frame(window);

@@ -6,7 +6,7 @@ use std::collections::VecDeque;
 
 use common::{clocked, tmp_root_with_carts};
 use slot::frontend::Frontend;
-use slot_gfx::{Compositor, HeadlessSurface};
+use slot_gfx::{Canvas, Compositor, HeadlessSurface};
 use slot_input::{InputSource, Millis, RawEvent};
 use slot_power::SimPlatform;
 
@@ -64,4 +64,34 @@ fn the_shelf_on_a_4_by_3_panel_fills_it_from_the_top_row() {
         .filter(|p| p[0] as u32 + p[1] as u32 + p[2] as u32 > 30)
         .count();
     assert!(lit > 600, "the top row is black: {lit} of 640 pixels lit");
+}
+
+#[test]
+fn a_host_window_resized_to_4_by_3_lays_the_shelf_out_for_it() {
+    let Ok(surface) = HeadlessSurface::new() else {
+        return;
+    };
+    let Ok(mut c) = Compositor::new(&surface) else {
+        return;
+    };
+    let d = tmp_root_with_carts(&["Emerald", "Zzz"]);
+    clocked(d.path());
+    let mut f = Frontend::boot(Box::new(SimPlatform::at(d.path().to_path_buf())));
+    f.upload_faces(&mut c);
+    f.upload_bezel(&mut c, (720, 480));
+    f.render(&mut c, (720, 480));
+    assert_eq!(f.app().canvas(), Canvas::FRAMED);
+    f.render(&mut c, (640, 480));
+    assert_eq!(
+        f.app().canvas(),
+        Canvas { w: 640.0, h: 480.0 },
+        "the shelf kept its 720 layout in a 4:3 window"
+    );
+    assert_eq!(c.frame_size(), (640, 480));
+    f.render(&mut c, (1080, 720));
+    assert_eq!(
+        f.app().canvas(),
+        Canvas::FRAMED,
+        "a 3:2 window kept the 4:3 layout"
+    );
 }
