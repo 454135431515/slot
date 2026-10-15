@@ -655,6 +655,8 @@ impl Frontend {
         if self.rebuild.is_some() {
             return;
         }
+        self.session
+            .set_menu_dpad_display(input.menu_dpad_display());
         self.session.feed(events, now);
         let dt = self.last.elapsed().as_secs_f32();
         self.last = Instant::now();
@@ -671,6 +673,8 @@ impl Frontend {
 
     pub fn advance_at(&mut self, input: &mut dyn InputSource, now: Millis, dt: f32) {
         let events = input.poll(now);
+        self.session
+            .set_menu_dpad_display(input.menu_dpad_display());
         self.session.feed(events, now);
         self.session.update(dt);
     }
