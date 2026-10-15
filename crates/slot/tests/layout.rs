@@ -216,3 +216,95 @@ fn the_shelf_still_shows_behind_the_power_on_on_a_720_panel() {
         "the 720 power-on lost the wallpaper behind it"
     );
 }
+
+fn eject_until_shelf(a: &mut App, mut each: impl FnMut(&App)) {
+    a.apply(Action::Eject);
+    for _ in 0..240 {
+        each(a);
+        if matches!(a.phase(), Phase::Shelf) {
+            return;
+        }
+        tick(a);
+    }
+    panic!("the cart never came out");
+}
+
+#[test]
+fn ejecting_a_cart_that_is_still_going_in_keeps_the_shelf_native() {
+    let mut a = app_with_carts(&["Emerald", "Zzz"], PANEL_4_3);
+    a.apply(Action::Insert);
+    for _ in 0..10 {
+        tick(&mut a);
+    }
+    assert!(matches!(a.phase(), Phase::Inserting { .. }));
+    eject_until_shelf(&mut a, |a| {
+        assert_eq!(
+            a.overlay_slide(),
+            0.0,
+            "the overlay rose over a cart going in"
+        );
+        assert_eq!(a.layout(), Layout::Native, "the shelf went framed");
+    });
+}
+
+#[test]
+fn exit_from_the_in_game_menu_never_brings_the_overlay_back() {
+    let mut a = playing(PANEL_4_3);
+    a.apply(Action::QuickMenu);
+    for _ in 0..30 {
+        tick(&mut a);
+    }
+    assert_eq!(a.layout(), Layout::Native);
+    let mut powering = 0;
+    eject_until_shelf(&mut a, |a| {
+        assert_eq!(
+            a.overlay_slide(),
+            0.0,
+            "the overlay popped in on the way out"
+        );
+        assert_eq!(a.layout(), Layout::Native);
+        if matches!(a.phase(), Phase::Ejecting { .. }) && a.screen_power() > 0.0 {
+            powering += 1;
+            let mut out = Vec::new();
+            a.draw(&mut out);
+            assert!(
+                matches!(
+                    out.first(),
+                    Some(Draw::Rect {
+                        colour: [0.0, 0.0, 0.0, 1.0],
+                        ..
+                    })
+                ),
+                "the game powered off over something other than black"
+            );
+            assert!(
+                !out.iter().any(|d| matches!(d, Draw::Part { .. })),
+                "the shelf showed behind the game powering off"
+            );
+        }
+    });
+    assert!(powering > 0, "the screen never powered off");
+}
+
+#[test]
+fn ejecting_while_the_overlay_rises_never_raises_it_further() {
+    let mut a = app_with_carts(&["Emerald", "Zzz"], PANEL_4_3);
+    a.apply(Action::Insert);
+    a.on_core_ready();
+    while !matches!(a.phase(), Phase::Playing { .. }) {
+        tick(&mut a);
+    }
+    for _ in 0..5 {
+        tick(&mut a);
+    }
+    let mut high = a.overlay_slide();
+    assert!(high > 0.0 && high < 1.0, "not mid-rise: {high}");
+    eject_until_shelf(&mut a, |a| {
+        let now = a.overlay_slide();
+        assert!(
+            now <= high + 1e-6,
+            "the overlay jumped from {high} to {now}"
+        );
+        high = now;
+    });
+}

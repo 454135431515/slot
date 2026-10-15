@@ -348,6 +348,7 @@ pub struct App {
     hud: Hud,
     screen: f32,
     lift: f32,
+    eject_overlay: f32,
     panel: (u32, u32),
     game_ready: bool,
     clock: f64,
@@ -490,6 +491,7 @@ impl App {
             hud: Hud::new(),
             screen: 0.0,
             lift: 1.0,
+            eject_overlay: 0.0,
             panel: (0, 0),
             game_ready: false,
             clock: 0.0,
@@ -2264,9 +2266,9 @@ impl App {
 
     pub fn overlay_slide(&self) -> f32 {
         match &self.phase {
-            Phase::Ejecting { t, .. } => {
-                ((-t - (EJECT_HOLD_S - POWER_ON_S)) / POWER_ON_S).clamp(0.0, 1.0)
-            }
+            Phase::Ejecting { t, .. } => ((-t - (EJECT_HOLD_S - POWER_ON_S)) / POWER_ON_S)
+                .clamp(0.0, 1.0)
+                .min(self.eject_overlay),
             Phase::Playing { .. } | Phase::Polaroids { .. } | Phase::Doze { cart: Some(_) } => {
                 self.lift
             }
@@ -2671,7 +2673,10 @@ impl App {
                 }
                 self.chrome(cart, 0.0, out);
             }
-            Phase::Ejecting { .. } if self.framed_panel() && self.layout() == Layout::Framed => {
+            Phase::Ejecting { .. }
+                if self.framed_panel()
+                    && (self.layout() == Layout::Framed || self.screen > 0.0) =>
+            {
                 self.draw_powering(out)
             }
             Phase::Playing { .. } if self.framed_panel() && self.screen < 1.0 => {
@@ -3220,6 +3225,10 @@ impl App {
         if self.single_cart() {
             return self.refuse();
         }
+        self.eject_overlay = match self.layout() {
+            Layout::Framed => self.overlay_slide(),
+            Layout::Native => 0.0,
+        };
         self.in_game_menu = None;
         let cart = match &mut self.phase {
             Phase::Playing { cart } | Phase::Inserting { cart, .. } => std::mem::take(cart),
