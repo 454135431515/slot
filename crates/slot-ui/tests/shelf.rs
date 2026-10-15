@@ -474,6 +474,7 @@ fn the_gauge_is_white_in_dark_mode_and_black_in_light_mode() {
     let gauge = |light| {
         let mut out = Vec::new();
         draw_footer(
+            Canvas::FRAMED,
             Some(Battery {
                 percent: 68,
                 charge: Charge::Discharging,
@@ -499,6 +500,7 @@ fn the_gauge_is_white_in_dark_mode_and_black_in_light_mode() {
 fn the_gauge_starts_at_the_case_margin() {
     let mut out = Vec::new();
     draw_footer(
+        Canvas::FRAMED,
         Some(Battery {
             percent: 68,
             charge: Charge::Charging,
@@ -523,6 +525,7 @@ fn the_gauge_starts_at_the_case_margin() {
 fn the_band_prints_the_charge_at_one_margin_and_the_clock_at_the_other() {
     let mut out = Vec::new();
     draw_footer(
+        Canvas::FRAMED,
         Some(Battery {
             percent: 68,
             charge: Charge::Charging,
@@ -571,6 +574,7 @@ fn the_band_prints_the_charge_at_one_margin_and_the_clock_at_the_other() {
 fn the_footer_does_not_move_the_gauge_when_the_charge_state_changes() {
     let mut idle = Vec::new();
     draw_footer(
+        Canvas::FRAMED,
         Some(Battery {
             percent: 68,
             charge: Charge::Discharging,
@@ -583,6 +587,7 @@ fn the_footer_does_not_move_the_gauge_when_the_charge_state_changes() {
     );
     let mut charging = Vec::new();
     draw_footer(
+        Canvas::FRAMED,
         Some(Battery {
             percent: 68,
             charge: Charge::Charging,
@@ -605,6 +610,7 @@ fn the_footer_does_not_move_the_gauge_when_the_charge_state_changes() {
 fn the_clock_stays_at_the_right_margin() {
     let mut out = Vec::new();
     draw_footer(
+        Canvas::FRAMED,
         None,
         Printed::default(),
         None,
@@ -626,6 +632,7 @@ fn the_clock_stays_at_the_right_margin() {
 fn a_band_with_no_gauge_still_draws_its_clock() {
     let mut out = Vec::new();
     draw_footer(
+        Canvas::FRAMED,
         None,
         Printed::default(),
         None,

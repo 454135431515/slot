@@ -21,7 +21,7 @@ fn render_about() {
         paper.as_ref().map(|_| TexId::from_raw(0)),
         &mut list,
     );
-    draw_sticker(Some(TexId::from_raw(1)), &mut list);
+    draw_sticker(Canvas::FRAMED, Some(TexId::from_raw(1)), &mut list);
 
     let (w, h) = (OUT_W as usize, OUT_H as usize);
     let mut px = vec![0u8; w * h * 4];

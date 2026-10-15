@@ -1,6 +1,6 @@
 use slot_ui::{
-    ff_badge, icon_box, icon_face, Badge, Draw, FfState, Hud, HudKind, Icon, LinkBadge, TexId,
-    HUD_ICON_PX, LINK_HOST_INK, LINK_JOIN_INK, OUT_H, OUT_W,
+    ff_badge, icon_box, icon_face, Badge, Canvas, Draw, FfState, Hud, HudKind, Icon, LinkBadge,
+    TexId, HUD_ICON_PX, LINK_HOST_INK, LINK_JOIN_INK, OUT_H, OUT_W,
 };
 
 fn bottom_edge(d: &Draw) -> Option<f32> {
@@ -17,7 +17,7 @@ fn fill(kind: HudKind, value: u8) -> f32 {
     let mut h = Hud::new();
     h.show(kind, value, false, 0);
     let mut out = Vec::new();
-    h.draw(0, &mut out);
+    h.draw(Canvas::FRAMED, 0, &mut out);
     match out.last().expect("no bar in the list") {
         Draw::Rect { w, .. } => *w,
         _ => panic!("the bar must be a rect"),
@@ -52,7 +52,7 @@ fn the_hud_sits_at_the_top_of_the_screen() {
     let mut h = Hud::new();
     h.show(HudKind::Volume, 50, false, 0);
     let mut out = Vec::new();
-    h.draw(0, &mut out);
+    h.draw(Canvas::FRAMED, 0, &mut out);
     let lowest = out.iter().filter_map(bottom_edge).fold(0.0f32, f32::max);
     assert!(
         lowest < OUT_H as f32 / 2.0,
@@ -65,7 +65,7 @@ fn the_hud_draws_a_dark_plate_behind_itself() {
     let mut h = Hud::new();
     h.show(HudKind::Brightness, 5, false, 0);
     let mut out = Vec::new();
-    h.draw(0, &mut out);
+    h.draw(Canvas::FRAMED, 0, &mut out);
     let plate = out.first().expect("nothing drawn");
     let Draw::Rect { w, colour, .. } = plate else {
         panic!("first draw is not the plate")
@@ -106,7 +106,7 @@ fn an_empty_rewind_buffer_still_draws_an_empty_bar() {
     let mut h = Hud::new();
     h.show(HudKind::Rewind, 0, false, 0);
     let mut out = Vec::new();
-    h.draw(0, &mut out);
+    h.draw(Canvas::FRAMED, 0, &mut out);
     assert!(
         out.len() >= 2,
         "the track disappeared when the buffer emptied"
@@ -148,7 +148,7 @@ fn the_badge_outlives_the_bar_timer_without_a_plate() {
     let mut h = Hud::new();
     h.set_ff(FfState::Latched);
     let mut out = Vec::new();
-    h.draw(60_000, &mut out);
+    h.draw(Canvas::FRAMED, 60_000, &mut out);
     assert!(
         !out.iter()
             .any(|d| matches!(d, Draw::Rect { w, .. } if *w == OUT_W as f32)),
@@ -166,7 +166,7 @@ fn the_badge_leaves_when_fast_forward_stops() {
     h.set_ff(FfState::Held);
     h.set_ff(FfState::Off);
     let mut out = Vec::new();
-    h.draw(0, &mut out);
+    h.draw(Canvas::FRAMED, 0, &mut out);
     assert!(out.is_empty(), "the plate outlived the fast forward");
 }
 
@@ -181,7 +181,7 @@ fn the_ff_badge_draws_no_plate_but_the_bar_still_does() {
     let mut badge_only = Hud::new();
     badge_only.set_ff(FfState::Held);
     let mut out = Vec::new();
-    badge_only.draw(60_000, &mut out);
+    badge_only.draw(Canvas::FRAMED, 60_000, &mut out);
     assert_eq!(
         full(&out),
         0,
@@ -191,7 +191,7 @@ fn the_ff_badge_draws_no_plate_but_the_bar_still_does() {
     let mut with_bar = Hud::new();
     with_bar.show(HudKind::Volume, 50, false, 0);
     let mut out = Vec::new();
-    with_bar.draw(0, &mut out);
+    with_bar.draw(Canvas::FRAMED, 0, &mut out);
     assert_eq!(full(&out), 1, "the bar lost the plate it is read against");
 }
 
@@ -205,7 +205,7 @@ fn the_link_badge_takes_the_fast_forward_corner_without_a_plate() {
     h.set_link_faces(badges());
     h.set_link(LinkBadge::Hosting);
     let mut out = Vec::new();
-    h.draw(60_000, &mut out);
+    h.draw(Canvas::FRAMED, 60_000, &mut out);
     assert_eq!(out.len(), 1, "the badge came with company: {out:?}");
     let (w, _) = icon_box(HUD_ICON_PX);
     assert!(matches!(out[0], Draw::Tex { tex, x, .. }
@@ -232,7 +232,7 @@ fn the_link_badge_outranks_fast_forward() {
     h.set_ff(FfState::Latched);
     h.set_link(LinkBadge::JoinedLost);
     let mut out = Vec::new();
-    h.draw(0, &mut out);
+    h.draw(Canvas::FRAMED, 0, &mut out);
     let texes: Vec<TexId> = out
         .iter()
         .filter_map(|d| match d {

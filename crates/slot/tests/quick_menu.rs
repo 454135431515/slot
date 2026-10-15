@@ -873,7 +873,7 @@ fn the_about_label_sits_on_the_same_tinted_ground_as_the_menu() {
     assert!(matches!(a.phase(), Phase::About), "{:?}", a.phase());
     let about = frame(&a);
     assert!(
-        matches!(menu[0], Draw::Tex { tex, .. } if tex == TexId::from_raw(801)),
+        matches!(menu[0], Draw::Part { tex, .. } if tex == TexId::from_raw(801)),
         "the menu is not on the blurred wallpaper"
     );
     assert!(

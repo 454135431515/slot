@@ -182,7 +182,14 @@ impl Polaroids {
             });
         }
 
-        draw_corners(battery, battery_percent, bolt, clock, out);
+        draw_corners(
+            slot_gfx::Canvas::FRAMED,
+            battery,
+            battery_percent,
+            bolt,
+            clock,
+            out,
+        );
     }
 
     fn draw_bottom(&self, out: &mut Vec<Draw>) {
