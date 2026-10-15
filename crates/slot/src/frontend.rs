@@ -899,7 +899,7 @@ fn sync_clock(app: &mut App, compositor: &mut Compositor, clocks: &mut Clocks) {
         if title_shown.is_empty() {
             app.clear_shelf_title();
         } else {
-            let face = word_ink(&title_shown, [0xff, 0xff, 0xff]);
+            let face = slot_ui::title_line_face(&title_shown);
             let w = face.w;
             let id = upload(compositor, &mut clocks.title_tex, face);
             app.set_shelf_title_face(id, w);

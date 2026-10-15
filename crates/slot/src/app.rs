@@ -2771,7 +2771,12 @@ impl App {
                             self.slot_name_alpha(),
                             out,
                         );
-                        draw_slot_name(self.canvas(), self.shelf_title, self.title_alpha(), out);
+                        slot_ui::draw_slot_title(
+                            self.canvas(),
+                            self.shelf_title,
+                            self.title_alpha(),
+                            out,
+                        );
                     }
                 }
                 draw_footer(
