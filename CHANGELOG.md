@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.7.0](https://github.com/BrandonKowalski/slot/releases/tag/v1.7.0)
+
+- The slot, carts and shelf now have a skeuomorphic effect, with light and dark themes and bundled wallpapers. Huge thanks to Markus for this amazing work!
+- An in-game menu: tap MENU to pause the game behind it. A double tap still goes straight to States.
+- Favorites: Y stars a cart onto its own shelf. (#89)
+- A Recents shelf of the last 10 games, switched on from Settings -> General.
+- slot remembers the shelf and cart at power off and boots back onto them. (#53)
+- Per-platform bezels. Marcus again! (#77)
+- On 4:3 panels the shelf fills the screen.
+- Game Titles on the General page fades the shelf name into the selected game's name. (#84)
+- A 1 frame run-ahead setting for GBA games on mGBA.
+- Wallpaper Tint darkens your own wallpaper on the shelf.
+- GBA, GB and GBC each get their own Shader and Color Correction rows.
+- LCD3x is offered for GB and GBC games.
+- Game Boy stretch now properly only widens the picture.
+- The backlight steps follow a curve, so the low-end goes dimmer.
+- Holding a direction repeats it in menus, the clock and the shelf letter jump, but never in play.
+- RG34XX uses its own chords for brightness and the menu display.
+- The RG28XX picture is turned the way BaseOS says.
+- Restart no longer hangs on a black screen: the WiFi driver is unloaded first.
+- Muted play keeps its frame rate.
+- Fast-forward no longer stutters on frames that take longer than average. (#70)
+- gpSP no longer crashes when a crowded boot left its JIT cache unmapped.
+- Core options follow the platform that is playing. (#82)
+- Card logs moved into a `Logs` folder, and the session log rotates. Card alarms are logged too.
+
 ## [1.6.0](https://github.com/BrandonKowalski/slot/releases/tag/v1.6.0)
 
 - Runs on the RG28XX: its panel is mounted portrait, so slot turns the picture onto it. (#35)
