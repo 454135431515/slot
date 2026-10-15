@@ -142,12 +142,12 @@ impl Compositor {
             match *item {
                 Draw::Game => {
                     self.sprites.draw(&items[from..i], &self.quad);
-                    self.game.draw(&self.quad);
+                    self.in_game_rect(|c| c.game.draw(&c.quad));
                 }
                 Draw::Shot { tex } => {
                     self.sprites.draw(&items[from..i], &self.quad);
                     if let Some(tex) = self.sprites.source(tex) {
-                        self.game.draw_still(tex, &self.quad);
+                        self.in_game_rect(|c| c.game.draw_still(tex, &c.quad));
                     }
                 }
                 _ => continue,
@@ -401,6 +401,25 @@ impl Compositor {
 }
 
 impl Compositor {
+    fn in_game_rect(&mut self, draw: impl FnOnce(&mut Self)) {
+        if !self.native() {
+            return draw(self);
+        }
+        let (w, h) = canvas_size(self.window);
+        self.game
+            .set_fbo_scale(w as f32 / OUT_W as f32, h as f32 / OUT_H as f32);
+        let y = self.size.1 - h;
+        self.game.set_origin(0.0, y as f32);
+        unsafe { gl::Viewport(0, y as i32, w as i32, h as i32) };
+        draw(self);
+        self.game.set_origin(0.0, 0.0);
+        self.game.set_fbo_scale(
+            self.size.0 as f32 / OUT_W as f32,
+            self.size.1 as f32 / OUT_H as f32,
+        );
+        unsafe { gl::Viewport(0, 0, self.size.0 as i32, self.size.1 as i32) };
+    }
+
     fn blit_part(&self, x: i32, y: i32, w: i32, h: i32, uv: [f32; 4]) {
         unsafe {
             gl::Viewport(x, y, w, h);

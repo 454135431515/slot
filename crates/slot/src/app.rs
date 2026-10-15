@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use slot_gfx::{Canvas, OUT_H, OUT_W};
+use slot_gfx::{Canvas, Layout, OUT_H, OUT_W};
 use slot_input::{Action, Btn, MENU_DOUBLE_TAP_MS, MUTE_CHORD_MS};
 use slot_power::{Battery, Charge, LedState, LidPolicy, Power};
 use slot_retro::LinkChannel;
@@ -38,6 +38,8 @@ pub const SEATED_AT: f32 = INSERT_S - INSERT_HOLD_S;
 pub const EJECT_S: f32 = SEATED_AT;
 
 const EJECT_HOLD_S: f32 = 0.35;
+
+pub const IN_GAME_MENU: Layout = Layout::Native;
 
 const POWER_ON_S: f32 = 0.22;
 
@@ -346,6 +348,7 @@ pub struct App {
     hud: Hud,
     screen: f32,
     lift: f32,
+    panel: (u32, u32),
     game_ready: bool,
     clock: f64,
     power: Option<Power>,
@@ -487,6 +490,7 @@ impl App {
             hud: Hud::new(),
             screen: 0.0,
             lift: 1.0,
+            panel: (0, 0),
             game_ready: false,
             clock: 0.0,
             power: None,
@@ -2238,12 +2242,53 @@ impl App {
         };
     }
 
-    pub fn canvas(&self) -> Canvas {
-        Canvas::FRAMED
+    pub fn set_panel(&mut self, panel: (u32, u32)) {
+        self.panel = panel;
     }
 
-    pub fn frame_lift(&self) -> f32 {
-        self.lift
+    pub fn layout(&self) -> Layout {
+        if matches!(self.phase, Phase::Playing { .. }) && self.in_game_menu_shown().is_some() {
+            return IN_GAME_MENU;
+        }
+        match &self.phase {
+            Phase::Playing { .. } | Phase::Polaroids { .. } => Layout::Framed,
+            Phase::Ejecting { .. } if self.overlay_slide() > 0.0 => Layout::Framed,
+            Phase::Doze { cart: Some(_) } => Layout::Framed,
+            _ => Layout::Native,
+        }
+    }
+
+    pub fn canvas(&self) -> Canvas {
+        Canvas::of(self.layout(), self.panel)
+    }
+
+    pub fn overlay_slide(&self) -> f32 {
+        match &self.phase {
+            Phase::Ejecting { t, .. } => {
+                ((-t - (EJECT_HOLD_S - POWER_ON_S)) / POWER_ON_S).clamp(0.0, 1.0)
+            }
+            Phase::Playing { .. } | Phase::Polaroids { .. } | Phase::Doze { cart: Some(_) } => {
+                self.lift
+            }
+            _ => 0.0,
+        }
+    }
+
+    fn framed_panel(&self) -> bool {
+        slot_gfx::framed(self.panel)
+    }
+
+    fn draw_powering(&self, out: &mut Vec<Draw>) {
+        out.push(Draw::Rect {
+            x: 0.0,
+            y: 0.0,
+            w: OUT_W as f32,
+            h: OUT_H as f32,
+            colour: [0.0, 0.0, 0.0, 1.0],
+        });
+        if self.game_ready && self.screen > 0.0 {
+            out.push(Draw::Game);
+        }
     }
 
     pub fn screen_power(&self) -> f32 {
@@ -2625,6 +2670,12 @@ impl App {
                         .draw_row(self.canvas(), Some(cart), 0.0, self.seat(), 1.0, out);
                 }
                 self.chrome(cart, 0.0, out);
+            }
+            Phase::Ejecting { .. } if self.framed_panel() && self.layout() == Layout::Framed => {
+                self.draw_powering(out)
+            }
+            Phase::Playing { .. } if self.framed_panel() && self.screen < 1.0 => {
+                self.draw_powering(out)
             }
             Phase::Ejecting { cart, .. } => {
                 self.draw_background(out);

@@ -171,3 +171,37 @@ fn a_framed_frame_after_a_native_one_is_todays_frame_again() {
     let frame = framed_frame(&mut c);
     assert_eq!(fnv(&frame), FRAMED_HASH);
 }
+
+fn game_only(c: &mut Compositor, layout: Layout) -> Vec<u8> {
+    c.fit((640, 480));
+    c.set_screen_effect(ScreenEffect::Lcd3x);
+    c.set_screen_power(1.0);
+    c.begin_frame(layout);
+    c.upload_game(&pattern());
+    c.draw_list(&[Draw::Game]);
+    c.read_frame()
+}
+
+#[test]
+fn a_game_in_a_native_frame_sits_where_the_framed_one_does() {
+    let Some((_g, _s, mut c)) = compositor() else {
+        return;
+    };
+    let framed = game_only(&mut c, Layout::Framed);
+    let native = game_only(&mut c, Layout::Native);
+    assert_eq!(native.len(), 640 * 480 * 4);
+    let row = 640 * 4;
+    let worst = native[..427 * row]
+        .iter()
+        .zip(&framed)
+        .map(|(a, b)| a.abs_diff(*b))
+        .max();
+    assert!(
+        worst.unwrap_or(0) <= 1,
+        "the paused game moved or rescaled under a native frame: off by {worst:?}"
+    );
+    assert!(
+        native[427 * row..].chunks(4).all(|p| p[..3] == [0, 0, 0]),
+        "the strip under the game is not clear"
+    );
+}
