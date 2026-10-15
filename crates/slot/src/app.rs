@@ -7,9 +7,9 @@ use slot_input::{Action, Btn, MENU_DOUBLE_TAP_MS, MUTE_CHORD_MS};
 use slot_power::{Battery, Charge, LedState, LidPolicy, Power};
 use slot_retro::LinkChannel;
 use slot_store::{
-    format_stamp, read_slot_state, scan, write_slot_state, BezelPick, Cart, Core, GbPalette,
-    Platform, Recent, Shader, SlotState, StateEntry, StateRing, WallpaperPick, WallpaperTint,
-    BLUE_LIGHT_MAX, BRIGHTNESS_MAX, FF_SPEEDS, RING_MAX, RUN_AHEAD_MAX, VOLUME_MAX,
+    format_stamp, parse_stamp, read_slot_state, scan, write_slot_state, BezelPick, Cart, Core,
+    GbPalette, Platform, Recent, Shader, SlotState, StateEntry, StateRing, WallpaperPick,
+    WallpaperTint, BLUE_LIGHT_MAX, BRIGHTNESS_MAX, FF_SPEEDS, RING_MAX, RUN_AHEAD_MAX, VOLUME_MAX,
 };
 use slot_ui::{
     board_from, board_zoom, draw_empty_slot, draw_footer, draw_ground, draw_slot_name,
@@ -4725,7 +4725,8 @@ fn free_stamp(ring: &StateRing, now: i64) -> String {
         .list()
         .map(|l| l.into_iter().map(|e| e.stamp).collect())
         .unwrap_or_default();
-    let mut secs = now;
+    let newest = taken.iter().filter_map(|s| parse_stamp(s)).max();
+    let mut secs = newest.map_or(now, |n| now.max(n + 1));
     let mut stamp = format_stamp(secs);
     while taken.contains(&stamp) {
         secs += 1;
