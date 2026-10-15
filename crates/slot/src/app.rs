@@ -3055,6 +3055,7 @@ impl App {
             Phase::About => {
                 slot_ui::draw_menu_ground(self.canvas(), self.menu_ground(), out);
                 draw_sticker(self.canvas(), self.sticker_face, out);
+                self.draw_menu_footer(out);
                 return;
             }
             Phase::Inserting { cart, resumed, .. } => {
@@ -3178,7 +3179,7 @@ impl App {
     }
 
     fn draw_menu_footer(&self, out: &mut Vec<Draw>) {
-        let carousel = matches!(self.phase, Phase::QuickMenu { .. });
+        let carousel = matches!(self.phase, Phase::QuickMenu { .. } | Phase::About);
         let dy = if carousel {
             0.0
         } else {
@@ -3195,6 +3196,11 @@ impl App {
             Phase::QuickMenu { row } => {
                 draw_empty_slot(self.canvas(), self.slot_faces, out);
                 Some(*row)
+            }
+            Phase::About => {
+                draw_empty_slot(self.canvas(), self.slot_faces, out);
+                self.draw_about_legend(out);
+                return;
             }
             _ => return,
         };
@@ -3250,6 +3256,17 @@ impl App {
             canvas: self.canvas(),
         }
         .draw(out);
+    }
+
+    fn draw_about_legend(&self, out: &mut Vec<Draw>) {
+        let Some(faces) = &self.quick_menu_faces else {
+            return;
+        };
+        let [back, ..] = match self.light() {
+            true => faces.legend_light,
+            false => faces.legend,
+        };
+        self.draw_side_legend(back, false, LINK_LEGEND_Y, out);
     }
 
     fn draw_menu_legends(&self, row: QuickRow, y: f32, out: &mut Vec<Draw>) {
