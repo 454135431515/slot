@@ -486,11 +486,10 @@ impl Frontend {
         });
         compositor.set_shake(self.session.app().screen_shake());
         compositor.set_screen_power(self.session.app().screen_power());
-        compositor.set_frame_lift(self.session.app().frame_lift());
-        compositor.set_frame_split(self.session.app().frame_split());
+        compositor.set_overlay_slide(self.session.app().frame_lift());
         compositor.set_game_source_rect(self.session.app().source_rect());
         self.grab_link_shot(compositor);
-        compositor.begin_frame();
+        compositor.begin_frame(slot_gfx::Layout::Framed);
         if self.draw_rebuild(compositor) {
             return;
         }

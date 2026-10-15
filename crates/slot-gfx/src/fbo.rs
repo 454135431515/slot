@@ -4,6 +4,7 @@ use crate::pipeline::GamePass;
 use crate::quad::Quad;
 use crate::shaders::{BEZEL_FRAG, BLIT_FRAG, BLIT_VERT, TURN_VERT};
 use crate::surface::{blit_rect, GfxError, Surface, OUT_H, OUT_W};
+use crate::{Canvas, Layout};
 
 pub const BACKDROP: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
 
@@ -22,10 +23,11 @@ pub struct Compositor {
     blit: gl::types::GLuint,
     u_gain: gl::types::GLint,
     u_blit_uv: gl::types::GLint,
-    split: Option<f32>,
     gain: [f32; 3],
     shake: f32,
-    lift: f32,
+    window: (u32, u32),
+    layout: Layout,
+    slide: f32,
     screen: f32,
     quad: Quad,
     game: GamePass,
@@ -87,10 +89,11 @@ impl Compositor {
                 blit,
                 u_gain,
                 u_blit_uv,
-                split: None,
                 gain: blue_light_gain(0),
                 shake: 0.0,
-                lift: 1.0,
+                window: (OUT_W, OUT_H),
+                layout: Layout::Framed,
+                slide: 1.0,
                 screen: 0.0,
                 quad: Quad::new(),
                 game: GamePass::new()?,
@@ -183,7 +186,15 @@ impl Compositor {
     }
 
     pub fn fit(&mut self, window: (u32, u32)) {
-        let size = canvas_size(window);
+        self.window = window;
+        self.resize(canvas_size(window));
+    }
+
+    fn native(&self) -> bool {
+        self.layout == Layout::Native && crate::bezel::framed(self.window)
+    }
+
+    fn resize(&mut self, size: (u32, u32)) {
         if size == self.size {
             return;
         }
@@ -211,12 +222,8 @@ impl Compositor {
         self.size = size;
     }
 
-    pub fn set_frame_split(&mut self, canvas_y: Option<f32>) {
-        self.split = canvas_y;
-    }
-
-    pub fn set_frame_lift(&mut self, t: f32) {
-        self.lift = t;
+    pub fn set_overlay_slide(&mut self, t: f32) {
+        self.slide = t;
     }
 
     pub fn set_screen_power(&mut self, t: f32) {
@@ -264,7 +271,15 @@ impl Compositor {
         top_down
     }
 
-    pub fn begin_frame(&mut self) {
+    pub fn begin_frame(&mut self, layout: Layout) {
+        self.layout = layout;
+        let size = if self.native() {
+            self.window
+        } else {
+            canvas_size(self.window)
+        };
+        self.resize(size);
+        self.sprites.set_target(Canvas::of(layout, self.window));
         self.game.set_fbo_scale(
             self.size.0 as f32 / OUT_W as f32,
             self.size.1 as f32 / OUT_H as f32,
@@ -342,14 +357,6 @@ impl Compositor {
     }
 
     fn output(&mut self, window: (u32, u32), target: gl::types::GLuint) {
-        let framed = crate::bezel::framed(window);
-        let (x, mut y, w, h) = blit_rect(window, self.shake);
-        let drop = if framed {
-            crate::bezel::lifted_rect(window, self.lift).1
-        } else {
-            0
-        };
-        y -= drop;
         unsafe {
             gl::BindFramebuffer(gl::FRAMEBUFFER, target);
             gl::Viewport(0, 0, window.0 as i32, window.1 as i32);
@@ -358,42 +365,32 @@ impl Compositor {
             gl::UseProgram(self.blit);
             gl::ActiveTexture(gl::TEXTURE0);
             gl::Uniform3f(self.u_gain, self.gain[0], self.gain[1], self.gain[2]);
+            gl::BindTexture(gl::TEXTURE_2D, self.tex);
         }
-        unsafe { gl::BindTexture(gl::TEXTURE_2D, self.tex) };
-        let cut = self
-            .split
-            .filter(|_| framed && drop == 0)
-            .map(|c| (c * h as f32 / OUT_H as f32).round() as i32)
-            .filter(|c| (1..h).contains(c));
-        match cut {
-            Some(cut) => {
-                let ch = h as f32;
-                let gap = window.1 as i32 - h;
-                let below = h - cut;
-                let top = window.1 as i32 - cut;
-                self.blit_part(
-                    x,
-                    top,
-                    w,
-                    cut,
-                    [0.0, below as f32 / ch, 1.0, cut as f32 / ch],
-                );
-                self.blit_part(x, 0, w, below, [0.0, 0.0, 1.0, below as f32 / ch]);
-                let row = (below as f32 + 0.5) / ch;
-                self.blit_part(x, below, w, gap, [0.0, row, 1.0, 0.0]);
-                unsafe { gl::Uniform4f(self.u_blit_uv, 0.0, 0.0, 1.0, 1.0) };
-            }
-            None => self.blit_part(x, y, w, h, [0.0, 0.0, 1.0, 1.0]),
+        if self.native() {
+            let canvas = Canvas::of(Layout::Native, window);
+            let dx = (self.shake * window.0 as f32 / canvas.w).round() as i32;
+            self.blit_part(
+                dx,
+                0,
+                window.0 as i32,
+                window.1 as i32,
+                [0.0, 0.0, 1.0, 1.0],
+            );
+            return;
         }
-        let Some(bezel) = self.bezel.filter(|_| framed && self.screen > 0.0) else {
+        let framed = crate::bezel::framed(window);
+        let (x, y, w, h) = blit_rect(window, self.shake);
+        self.blit_part(x, y, w, h, [0.0, 0.0, 1.0, 1.0]);
+        let Some(bezel) = self.bezel.filter(|_| framed && self.slide > 0.0) else {
             return;
         };
-        let alpha = self.screen.clamp(0.0, 1.0);
+        let drop = crate::bezel::lifted_rect(window, self.slide).1;
         unsafe {
             gl::Viewport(0, -drop, window.0 as i32, window.1 as i32);
             gl::UseProgram(self.bezel_prog);
             gl::Uniform3f(self.u_bezel_gain, self.gain[0], self.gain[1], self.gain[2]);
-            gl::Uniform1f(self.u_bezel_alpha, alpha);
+            gl::Uniform1f(self.u_bezel_alpha, 1.0);
             gl::BindTexture(gl::TEXTURE_2D, bezel);
             gl::Enable(gl::BLEND);
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);

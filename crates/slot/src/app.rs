@@ -2239,13 +2239,6 @@ impl App {
         };
     }
 
-    pub fn frame_split(&self) -> Option<f32> {
-        match (&self.phase, self.power_menu) {
-            (Phase::QuickMenu { .. }, None) => Some(slot_ui::QUICK_SPLIT),
-            _ => None,
-        }
-    }
-
     pub fn frame_lift(&self) -> f32 {
         self.lift
     }

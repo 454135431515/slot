@@ -32,7 +32,7 @@ fn framed_frame(c: &mut Compositor) -> Vec<u8> {
     c.set_screen_effect(ScreenEffect::Lcd3x);
     c.set_screen_power(1.0);
     let badge = c.create_texture(2, 2, &[200, 40, 40, 255].repeat(4));
-    c.begin_frame();
+    c.begin_frame(Layout::Framed);
     c.upload_game(&pattern());
     c.draw_list(&[
         Draw::Game,
@@ -110,7 +110,7 @@ fn a_part_draws_only_its_window_of_the_texture() {
     }
     let tex = c.create_texture_nearest(3, 2, &rgba);
     c.fit((720, 480));
-    c.begin_frame();
+    c.begin_frame(Layout::Framed);
     c.draw_list(&[Draw::Part {
         x: 0.0,
         y: 0.0,
@@ -135,4 +135,39 @@ fn a_part_draws_only_its_window_of_the_texture() {
         [0, 255, 0],
         "the right of the part is not the middle texel"
     );
+}
+
+#[test]
+fn a_native_frame_on_a_4_by_3_panel_is_the_whole_panel() {
+    let Some((_g, _s, mut c)) = compositor() else {
+        return;
+    };
+    c.fit((640, 480));
+    c.begin_frame(Layout::Native);
+    c.draw_list(&[Draw::Rect {
+        x: 630.0,
+        y: 0.0,
+        w: 10.0,
+        h: 10.0,
+        colour: [1.0, 1.0, 1.0, 1.0],
+    }]);
+    assert_eq!(c.frame_size(), (640, 480));
+    let frame = c.read_frame();
+    let o = (5 * 640 + 635) * 4;
+    assert_eq!(
+        &frame[o..o + 3],
+        &[255, 255, 255],
+        "x 635 is not 1:1 in a native frame"
+    );
+}
+
+#[test]
+fn a_framed_frame_after_a_native_one_is_todays_frame_again() {
+    let Some((_g, _s, mut c)) = compositor() else {
+        return;
+    };
+    c.fit((640, 480));
+    c.begin_frame(Layout::Native);
+    let frame = framed_frame(&mut c);
+    assert_eq!(fnv(&frame), FRAMED_HASH);
 }
