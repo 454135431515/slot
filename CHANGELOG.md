@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.8.0](https://github.com/BrandonKowalski/slot/releases/tag/v1.8.0)
+
+- Run-Ahead is removed. It scrambled saves in games with a 128 KB flash chip, such as Super Mario Advance 4. (#104)
+- Loading a state while a game is saving to a 128 KB flash chip no longer writes the save into the wrong half of the chip.
+
 ## [1.7.0](https://github.com/BrandonKowalski/slot/releases/tag/v1.7.0)
 
 - The slot, carts and shelf now have a skeuomorphic effect, with light and dark themes and bundled wallpapers. Huge thanks to Markus for this amazing work! (#74, @MarkusMaribu)

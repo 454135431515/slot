@@ -76,21 +76,6 @@ fn the_fast_forward_row_offers_the_four_ceilings_the_card_can_hold() {
 }
 
 #[test]
-fn the_run_ahead_row_offers_off_and_one_frame() {
-    assert_eq!(
-        [0, 1].map(QuickValue::frames),
-        [Some(QuickValue::Off), Some(QuickValue::Frames1)]
-    );
-    for other in [2, 3, 255] {
-        assert_eq!(
-            QuickValue::frames(other),
-            None,
-            "{other} frames is not a value the row has"
-        );
-    }
-}
-
-#[test]
 fn the_rows_run_in_the_order_the_user_chose() {
     assert_eq!(
         QuickRow::MAIN.map(QuickRow::label),
@@ -129,7 +114,6 @@ fn the_rows_run_in_the_order_the_user_chose() {
             "Fast Forward",
             "Fast Forward Sound",
             "Rewind",
-            "Run-Ahead",
             "Turbo Buttons",
             "Rumble",
             "Auto Save on Eject"
@@ -204,7 +188,6 @@ fn the_values_read_as_the_menu_prints_them() {
             "Grid",
             "Dot",
             "Simpletex",
-            "1 Frame",
             "Dark",
             "Light",
             "Show",

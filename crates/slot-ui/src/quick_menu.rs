@@ -24,7 +24,6 @@ pub enum QuickRow {
     Turbo,
     Rewind,
     GbPalettes,
-    RunAhead,
     Theme,
     Wallpaper,
     General,
@@ -52,7 +51,7 @@ pub enum QuickRow {
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 40] = [
+    pub const ALL: [QuickRow; 39] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Screen,
@@ -68,7 +67,6 @@ impl QuickRow {
         QuickRow::Turbo,
         QuickRow::Rewind,
         QuickRow::GbPalettes,
-        QuickRow::RunAhead,
         QuickRow::Theme,
         QuickRow::Wallpaper,
         QuickRow::General,
@@ -133,11 +131,10 @@ impl QuickRow {
         QuickRow::GbBezel,
     ];
 
-    pub const GAME: [QuickRow; 7] = [
+    pub const GAME: [QuickRow; 6] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Rewind,
-        QuickRow::RunAhead,
         QuickRow::Turbo,
         QuickRow::Rumble,
         QuickRow::EjectSave,
@@ -179,7 +176,6 @@ impl QuickRow {
             QuickRow::FastForward
             | QuickRow::FastForwardSound
             | QuickRow::Rewind
-            | QuickRow::RunAhead
             | QuickRow::Turbo
             | QuickRow::Rumble
             | QuickRow::EjectSave => &QuickRow::GAME,
@@ -280,7 +276,6 @@ impl QuickRow {
             QuickRow::Turbo => "Turbo Buttons",
             QuickRow::Rewind => "Rewind",
             QuickRow::GbPalettes => "Palettes",
-            QuickRow::RunAhead => "Run-Ahead",
             QuickRow::Theme => "Theme",
             QuickRow::Wallpaper => "Wallpaper",
             QuickRow::General => "General",
@@ -349,7 +344,6 @@ pub enum QuickValue {
     Grid,
     Dot,
     Simpletex,
-    Frames1,
     Dark,
     Light,
     Show,
@@ -360,7 +354,7 @@ pub enum QuickValue {
 }
 
 impl QuickValue {
-    pub const ALL: [QuickValue; 18] = [
+    pub const ALL: [QuickValue; 17] = [
         QuickValue::Speed2,
         QuickValue::Speed3,
         QuickValue::Speed4,
@@ -371,7 +365,6 @@ impl QuickValue {
         QuickValue::Grid,
         QuickValue::Dot,
         QuickValue::Simpletex,
-        QuickValue::Frames1,
         QuickValue::Dark,
         QuickValue::Light,
         QuickValue::Show,
@@ -397,7 +390,6 @@ impl QuickValue {
             QuickValue::Grid => "Grid",
             QuickValue::Dot => "Dot",
             QuickValue::Simpletex => "Simpletex",
-            QuickValue::Frames1 => "1 Frame",
             QuickValue::Dark => "Dark",
             QuickValue::Light => "Light",
             QuickValue::Show => "Show",
@@ -414,14 +406,6 @@ impl QuickValue {
             3 => Some(QuickValue::Speed3),
             4 => Some(QuickValue::Speed4),
             6 => Some(QuickValue::Speed6),
-            _ => None,
-        }
-    }
-
-    pub fn frames(frames: u8) -> Option<QuickValue> {
-        match frames {
-            0 => Some(QuickValue::Off),
-            1 => Some(QuickValue::Frames1),
             _ => None,
         }
     }
