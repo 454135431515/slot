@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Frame Blending on each Screen page: Mix or LCD Ghosting turns what a game flickers every other frame into the see-through look the original screen gave it. gpSP offers Mix only. (#66, @454135431515)
+
 ## [1.7.0](https://github.com/BrandonKowalski/slot/releases/tag/v1.7.0)
 
 - The slot, carts and shelf now have a skeuomorphic effect, with light and dark themes and bundled wallpapers. Huge thanks to Markus for this amazing work! (#74, @MarkusMaribu)
