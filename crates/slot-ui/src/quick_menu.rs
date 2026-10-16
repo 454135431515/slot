@@ -552,7 +552,7 @@ pub fn quick_caret_face(right: bool) -> UndoFace {
     UndoFace { rgba, w, h }
 }
 
-pub fn quick_legend_faces(ink: [u8; 3]) -> [UndoFace; 4] {
+pub fn quick_legend_faces(ink: [u8; 3]) -> [UndoFace; 5] {
     let hint = Some(ink);
     [
         with_hint(button_face(ButtonLegend::B), "Back", hint, true),
@@ -564,6 +564,7 @@ pub fn quick_legend_faces(ink: [u8; 3]) -> [UndoFace; 4] {
         ),
         with_hint(button_face(ButtonLegend::A), "Open", hint, false),
         with_hint(button_face(ButtonLegend::B), "Resume", hint, true),
+        with_hint(button_face(ButtonLegend::X), "Restart", hint, false),
     ]
 }
 
@@ -643,8 +644,8 @@ pub struct QuickMenuFaces {
     pub pointer: (TexId, u32, u32),
     pub values: Vec<[(TexId, u32, u32); 2]>,
     pub carets: [(TexId, u32, u32); 2],
-    pub legend: [(TexId, u32); 4],
-    pub legend_light: [(TexId, u32); 4],
+    pub legend: [(TexId, u32); 5],
+    pub legend_light: [(TexId, u32); 5],
 }
 
 pub struct QuickMenu<'a> {
@@ -743,7 +744,7 @@ impl QuickMenu<'_> {
         if self.over_game || self.footer_legends {
             return;
         }
-        let [back, change, open, resume] = faces.legend;
+        let [back, change, open, resume, _] = faces.legend;
         let back = match self.row.page() == QuickRow::PLAY {
             true => resume,
             false => back,

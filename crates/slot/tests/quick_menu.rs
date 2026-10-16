@@ -517,6 +517,35 @@ fn a_on_about_opens_the_label_and_b_comes_back_to_the_menu() {
 }
 
 #[test]
+fn x_on_about_restarts() {
+    let (_d, mut a, _) = on_carousel();
+    open_at(&mut a, QuickRow::About);
+    press(&mut a, Btn::A);
+    assert!(!a.restarting(), "opening About restarted");
+    press(&mut a, Btn::X);
+    assert!(a.restarting() && !a.powering_off());
+}
+
+#[test]
+fn the_about_footer_puts_restart_on_the_right() {
+    let (_d, mut a, _) = on_carousel();
+    fake_faces(&mut a);
+    open_at(&mut a, QuickRow::About);
+    assert!(!drawn(&frame(&a), 404), "Restart is on the menu");
+    press(&mut a, Btn::A);
+    let out = frame(&a);
+    let (lx, ly, _) = legend_box(&out, 400);
+    let (rx, ry, rw) = legend_box(&out, 404);
+    assert_eq!(ly, ry);
+    assert!(lx.abs() < 1.0, "Back is not on the left: {lx}");
+    let right = rx + rw - HINT_EDGE as f32;
+    assert!(
+        (right - OUT_W as f32).abs() < 1.0,
+        "Restart is not on the right: {right}"
+    );
+}
+
+#[test]
 fn a_on_date_and_time_opens_the_clock_at_the_time_it_already_has() {
     let (_d, mut a, _) = on_carousel_with(SlotState {
         utc_offset_min: -300,
@@ -636,8 +665,20 @@ fn fake_faces(a: &mut App) {
             .map(|i| [(id(200 + i), 60, 40), (id(210 + i), 60, 40)])
             .collect(),
         carets: [(id(300), 10, 40), (id(301), 10, 40)],
-        legend: [(id(400), 70), (id(401), 110), (id(402), 80), (id(403), 90)],
-        legend_light: [(id(400), 70), (id(401), 110), (id(402), 80), (id(403), 90)],
+        legend: [
+            (id(400), 70),
+            (id(401), 110),
+            (id(402), 80),
+            (id(403), 90),
+            (id(404), 85),
+        ],
+        legend_light: [
+            (id(400), 70),
+            (id(401), 110),
+            (id(402), 80),
+            (id(403), 90),
+            (id(404), 85),
+        ],
     });
     a.set_quick_clock_faces((id(500), 150, 40), (id(501), 150, 40));
 }
@@ -943,8 +984,20 @@ fn no_row_in_hand_runs_its_arrows_into_its_label() {
             let f = slot_ui::quick_caret_face(right);
             (id(300 + right as usize), f.w, f.h)
         }),
-        legend: [(id(400), 70), (id(401), 110), (id(402), 80), (id(403), 90)],
-        legend_light: [(id(400), 70), (id(401), 110), (id(402), 80), (id(403), 90)],
+        legend: [
+            (id(400), 70),
+            (id(401), 110),
+            (id(402), 80),
+            (id(403), 90),
+            (id(404), 85),
+        ],
+        legend_light: [
+            (id(400), 70),
+            (id(401), 110),
+            (id(402), 80),
+            (id(403), 90),
+            (id(404), 85),
+        ],
     });
     for page in [
         &QuickRow::SCREEN_GBA[..],

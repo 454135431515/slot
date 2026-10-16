@@ -42,6 +42,10 @@ fn footer_legends_keep_the_hint_on_the_inner_side() {
         hint_is_beside(&menu[2], false),
         "Open sits to the left of A"
     );
+    assert!(
+        hint_is_beside(&menu[4], false),
+        "Restart sits to the left of X"
+    );
     let link = link_button_legends([0xff, 0xff, 0xff]);
     assert_eq!(link.len(), 7);
     assert!(link.iter().all(|f| f.h == MOUTH_H as u32));

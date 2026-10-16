@@ -366,7 +366,6 @@ impl Frontend {
         let shadow = cart(faces.chip_shadow);
         let mut up = |f: UndoFace| (compositor.create_texture(f.w, f.h, &f.rgba), f.w, f.h);
         let lines = faces.shutdown.into_iter().map(&mut up).collect();
-        let menu = faces.power_menu.into_iter().map(&mut up).collect();
         let labels = faces
             .quick_labels
             .into_iter()
@@ -379,7 +378,7 @@ impl Frontend {
             .map(|v| v.map(&mut up))
             .collect();
         let carets = faces.quick_carets.map(&mut up);
-        let mut pack_legend = |faces: [UndoFace; 4]| {
+        let mut pack_legend = |faces: [UndoFace; 5]| {
             faces.map(|f| {
                 let (tex, w, _) = up(f);
                 (tex, w)
@@ -417,7 +416,6 @@ impl Frontend {
         let app = self.session.app_mut();
         app.set_link_badge_faces(link_badges);
         app.set_shutdown_faces(lines);
-        app.set_power_menu_faces(menu);
         app.set_quick_menu_faces(QuickMenuFaces {
             labels,
             pointer,
@@ -741,13 +739,12 @@ fn legend_faces(compositor: &mut Compositor, legend: &[(&str, &str)]) -> Vec<Tex
 struct UiFaces {
     link_badges: Vec<CartFace>,
     shutdown: Vec<UndoFace>,
-    power_menu: Vec<UndoFace>,
     quick_labels: Vec<[UndoFace; 2]>,
     quick_pointer: UndoFace,
     quick_values: Vec<[UndoFace; 2]>,
     quick_carets: [UndoFace; 2],
-    quick_legend: [UndoFace; 4],
-    quick_legend_light: [UndoFace; 4],
+    quick_legend: [UndoFace; 5],
+    quick_legend_light: [UndoFace; 5],
     sockets: Vec<CartFace>,
     chips: Vec<CartFace>,
     blank_chip: CartFace,
@@ -783,10 +780,6 @@ impl UiFaces {
                         PowerChoice::PowerOff => "Powering Down",
                     })
                 })
-                .collect(),
-            power_menu: PowerChoice::ALL
-                .iter()
-                .map(|c| menu_face(c.text()))
                 .collect(),
             quick_labels: QuickRow::ALL
                 .iter()

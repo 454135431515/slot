@@ -1982,32 +1982,6 @@ fn a_cart_with_no_line_reads_as_actual_size() {
 }
 
 #[test]
-fn the_power_menus_own_buttons_never_reach_the_game() {
-    let d = common::tmp_root_with_carts(&["Emerald", "Zzz"]);
-    let mut s = session_playing(d.path());
-    s.feed([RawEvent::Down(Btn::Power)], 1000);
-    s.feed([], 2100);
-    assert!(
-        s.app().power_menu().is_some(),
-        "the power menu never opened"
-    );
-    s.feed([RawEvent::Up(Btn::Power)], 2110);
-    s.feed([RawEvent::Down(Btn::Down)], 2200);
-    assert_eq!(
-        pad(&s) & ButtonMask::DOWN,
-        0,
-        "the press that moved the power menu's bar reached the game"
-    );
-    s.feed([RawEvent::Down(Btn::B)], 2300);
-    assert!(s.app().power_menu().is_none(), "B did not dismiss the menu");
-    assert_eq!(
-        pad(&s) & ButtonMask::B,
-        0,
-        "the B that cancelled the power menu was handed to the game underneath it"
-    );
-}
-
-#[test]
 fn a_chorded_select_never_reaches_the_pad() {
     let d = common::tmp_root_with_carts(&["Emerald", "Zzz"]);
     let mut s = session_playing(d.path());

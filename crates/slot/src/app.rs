@@ -69,8 +69,6 @@ const PLAY_HOLD_MS: Millis = 500;
 
 const SHUTDOWN_SHOW_MS: Millis = 250;
 
-const POWER_MENU_PITCH: f32 = 44.0;
-const POWER_MENU_BAR_INSET: f32 = 4.0;
 const CORE_PICKER_RECEDE: f32 = 0.26;
 
 const SLOT_NAME_IN_MS: Millis = 200;
@@ -312,8 +310,6 @@ pub struct App {
     refused_from: Option<f32>,
     alert_face: Option<TexId>,
     shutdown_faces: Vec<(TexId, u32, u32)>,
-    power_menu: Option<usize>,
-    power_menu_faces: Vec<(TexId, u32, u32)>,
     core_picker: Option<CorePicker>,
     core_board_face: Option<TexId>,
     core_interior_face: Option<TexId>,
@@ -478,8 +474,6 @@ impl App {
             refused_from: None,
             alert_face: None,
             shutdown_faces: Vec::new(),
-            power_menu: None,
-            power_menu_faces: Vec::new(),
             core_picker: None,
             core_board_face: None,
             core_interior_face: None,
@@ -689,9 +683,6 @@ impl App {
 
     fn repeats(&self, btn: Btn) -> bool {
         let vertical = matches!(btn, Btn::Up | Btn::Down);
-        if self.power_menu.is_some() {
-            return vertical;
-        }
         if self.game_menu.is_some() {
             return false;
         }
@@ -1703,10 +1694,6 @@ impl App {
         }
     }
 
-    pub fn power_menu(&self) -> Option<usize> {
-        self.power_menu
-    }
-
     pub fn core_picker(&self) -> Option<Core> {
         self.core_picker.map(|p| p.seat())
     }
@@ -1816,13 +1803,6 @@ impl App {
 
     pub fn apply(&mut self, action: Action) {
         self.track_held_dir(action);
-        if self.power_menu.is_some() {
-            match action {
-                Action::LidClose => return self.doze(),
-                Action::LidOpen => return self.wake(),
-                _ => return self.power_menu_input(action),
-            }
-        }
         match action {
             Action::LidClose => return self.doze(),
             Action::LidOpen => return self.wake(),
@@ -1838,7 +1818,7 @@ impl App {
                 return self.flush_resume();
             }
             Action::PowerTap => return self.power_press(),
-            Action::PowerHold => return self.open_power_menu(),
+            Action::PowerHold => return self.hold_power(),
             Action::PowerOff => return,
             _ => {}
         }
@@ -1935,6 +1915,7 @@ impl App {
                     row: QuickRow::About,
                 }
             }
+            Phase::About if action == Action::GbaDown(Btn::X) => self.begin_restart(),
             Phase::QuickMenu { row } => self.quick_menu_input(row, action),
             _ => {}
         }
@@ -2508,19 +2489,17 @@ impl App {
             -dt / POWER_OFF_S
         };
         self.screen = (self.screen + step).clamp(0.0, 1.0);
-        let docked = self.power_menu.is_none()
-            && matches!(
-                self.phase,
-                Phase::Shelf | Phase::Inserting { .. } | Phase::Ejecting { .. }
-            );
-        let sliding = self.power_menu.is_none()
-            && matches!(
-                self.phase,
-                Phase::Inserting { .. }
-                    | Phase::Playing { .. }
-                    | Phase::Polaroids { .. }
-                    | Phase::Ejecting { .. }
-            );
+        let docked = matches!(
+            self.phase,
+            Phase::Shelf | Phase::Inserting { .. } | Phase::Ejecting { .. }
+        );
+        let sliding = matches!(
+            self.phase,
+            Phase::Inserting { .. }
+                | Phase::Playing { .. }
+                | Phase::Polaroids { .. }
+                | Phase::Ejecting { .. }
+        );
         let reach = if sliding { dt / POWER_ON_S } else { 1.0 };
         self.lift = match docked {
             true => (self.lift - reach).max(0.0),
@@ -2949,10 +2928,6 @@ impl App {
     }
 
     pub fn draw(&self, out: &mut Vec<Draw>) {
-        if let Some(index) = self.power_menu {
-            self.draw_power_menu(index, out);
-            return;
-        }
         if self.shutting_down() {
             out.push(Draw::Rect {
                 x: 0.0,
@@ -3262,18 +3237,19 @@ impl App {
         let Some(faces) = &self.quick_menu_faces else {
             return;
         };
-        let [back, ..] = match self.light() {
+        let [back, .., restart] = match self.light() {
             true => faces.legend_light,
             false => faces.legend,
         };
         self.draw_side_legend(back, false, LINK_LEGEND_Y, out);
+        self.draw_side_legend(restart, true, LINK_LEGEND_Y, out);
     }
 
     fn draw_menu_legends(&self, row: QuickRow, y: f32, out: &mut Vec<Draw>) {
         let Some(faces) = &self.quick_menu_faces else {
             return;
         };
-        let [back, change, open, resume] = match self.light() {
+        let [back, change, open, resume, _] = match self.light() {
             true => faces.legend_light,
             false => faces.legend,
         };
@@ -3356,10 +3332,6 @@ impl App {
         self.shutdown_faces = faces;
     }
 
-    pub fn set_power_menu_faces(&mut self, faces: Vec<(TexId, u32, u32)>) {
-        self.power_menu_faces = faces;
-    }
-
     pub fn set_core_interior_face(&mut self, interior: TexId) {
         self.core_interior_face = Some(interior);
     }
@@ -3423,23 +3395,6 @@ impl App {
 
     pub fn link_sprites_ready(&self) -> bool {
         self.link_sprites.is_some()
-    }
-
-    fn draw_power_menu(&self, index: usize, out: &mut Vec<Draw>) {
-        out.push(Draw::Rect {
-            x: 0.0,
-            y: 0.0,
-            w: self.canvas().w,
-            h: OUT_H as f32,
-            colour: slot_ui::opening(),
-        });
-        draw_menu_rows(
-            self.canvas(),
-            &self.power_menu_faces,
-            Some(index),
-            centred_top(self.power_menu_faces.len()),
-            out,
-        );
     }
 
     fn core_picker_shown(&self) -> Option<CorePicker> {
@@ -3864,45 +3819,19 @@ impl App {
         }
     }
 
-    fn open_power_menu(&mut self) {
-        if self.power_menu.is_some() {
-            return;
-        }
-        if self.link_active() {
-            return self.refuse();
-        }
+    fn hold_power(&mut self) {
         self.flush_resume();
-        self.power_menu = Some(0);
+        self.begin_power_off();
     }
 
-    fn power_menu_input(&mut self, action: Action) {
-        let Some(index) = self.power_menu else {
+    fn begin_restart(&mut self) {
+        if self.shutting_down() {
             return;
-        };
-        let last = PowerChoice::ALL.len() - 1;
-        match action {
-            Action::GbaDown(Btn::Up) => {
-                self.power_menu = Some(if index == 0 { last } else { index - 1 })
-            }
-            Action::GbaDown(Btn::Down) => {
-                self.power_menu = Some(if index >= last { 0 } else { index + 1 })
-            }
-            Action::GbaDown(Btn::B) => self.power_menu = None,
-            Action::GbaDown(Btn::A) => {
-                self.power_menu = None;
-                self.close_game_menu();
-                match PowerChoice::ALL[index] {
-                    PowerChoice::Restart => {
-                        self.remember_shelf();
-                        self.restarting = true;
-                        self.act_at = self.now() + SHUTDOWN_SHOW_MS;
-                        self.set_led(LedState::Off);
-                    }
-                    PowerChoice::PowerOff => self.begin_power_off(),
-                }
-            }
-            _ => {}
         }
+        self.remember_shelf();
+        self.restarting = true;
+        self.act_at = self.now() + SHUTDOWN_SHOW_MS;
+        self.set_led(LedState::Off);
     }
 
     fn open_core_picker(&mut self) {
@@ -4206,9 +4135,6 @@ impl App {
     }
 
     fn poll_link(&mut self) {
-        if self.power_menu.is_some() {
-            return;
-        }
         let Some(mut starting) = self.starting.take() else {
             return;
         };
@@ -4733,40 +4659,6 @@ fn free_stamp(ring: &StateRing, now: i64) -> String {
         stamp = format_stamp(secs);
     }
     stamp
-}
-
-fn centred_top(rows: usize) -> f32 {
-    (OUT_H as f32 - POWER_MENU_PITCH * rows as f32) / 2.0
-}
-
-fn draw_menu_rows(
-    canvas: Canvas,
-    faces: &[(TexId, u32, u32)],
-    index: Option<usize>,
-    top: f32,
-    out: &mut Vec<Draw>,
-) {
-    for (row, (tex, w, h)) in faces.iter().copied().enumerate() {
-        let y = top + POWER_MENU_PITCH * row as f32;
-        let x = canvas.centred(w as f32).round();
-        if index == Some(row) {
-            out.push(Draw::Rect {
-                x,
-                y: y + POWER_MENU_BAR_INSET,
-                w: w as f32,
-                h: POWER_MENU_PITCH - 2.0 * POWER_MENU_BAR_INSET,
-                colour: slot_ui::edge(),
-            });
-        }
-        out.push(Draw::Tex {
-            x,
-            y: y + (POWER_MENU_PITCH - h as f32) / 2.0,
-            w: w as f32,
-            h: h as f32,
-            tex,
-            alpha: 1.0,
-        });
-    }
 }
 
 fn bezel_slot(platform: Platform) -> usize {
