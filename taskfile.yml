@@ -94,6 +94,7 @@ tasks:
     cmds:
       - sh card/test-slotlink.sh
       - sh card/test-led.sh
+      - sh card/test-lid.sh
       - sh card/test-coresave.sh
       - sh card/test-launch.sh
       - sh card/test-repair.sh
