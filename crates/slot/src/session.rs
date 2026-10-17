@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use slot_input::{Action, Gestures, Millis, RawEvent};
+use slot_input::{Action, Btn, Chord, Gestures, Millis, Mod, RawEvent};
 use slot_retro::Rumble;
-use slot_store::Platform;
+use slot_store::{Platform, ShortcutKeys};
 use slot_ui::FfState;
 
 pub const RUMBLE_MIN_MS: Millis = 100;
@@ -14,7 +14,7 @@ use crate::audio::{opened_sink, AudioSink, Ring, Sfx};
 use crate::core::open_core;
 use crate::emu::{CoreState, EmuHandle, Speed};
 use crate::frames::FrameRef;
-use crate::input::Pad;
+use crate::input::{shortcut_table, Pad};
 use crate::persist;
 use crate::prefetch::Prefetch;
 
@@ -24,6 +24,8 @@ pub struct Session {
     emu: Option<EmuHandle>,
     sink: Box<dyn AudioSink>,
     gestures: Gestures,
+    table_for: Option<(ShortcutKeys, bool)>,
+    captured: Vec<Btn>,
     pad: Pad,
     rewinding: bool,
     fast: bool,
@@ -46,6 +48,8 @@ impl Session {
             emu: None,
             sink,
             gestures: Gestures::new(),
+            table_for: None,
+            captured: Vec::new(),
             pad: Pad::default(),
             rewinding: false,
             fast: false,
@@ -162,8 +166,36 @@ impl Session {
     pub fn feed(&mut self, events: impl IntoIterator<Item = RawEvent>, now: Millis) {
         let mut actions = Vec::new();
         let latched = self.gestures.ff_latched();
-        self.gestures.set_repair_chord(self.app.repair_offered());
+        self.gestures.set_playing(self.playing());
+        let shortcuts = self.app.shortcuts();
+        let repair = self.app.repair_offered();
+        if self.table_for != Some((shortcuts, repair)) {
+            let mut table = shortcut_table(&shortcuts);
+            if repair {
+                let chord = Chord {
+                    modifier: Some(Mod::Select),
+                    button: Btn::Start,
+                };
+                table.insert(0, (chord, Action::RepairCard));
+            }
+            self.gestures.set_shortcuts(table);
+            self.table_for = Some((shortcuts, repair));
+        }
         for ev in events {
+            if self.app.capturing() {
+                match ev {
+                    RawEvent::Down(b) => self.captured.push(b),
+                    RawEvent::Up(b) => self.captured.retain(|x| *x != b),
+                }
+                self.app.capture_input(ev);
+                continue;
+            }
+            if let RawEvent::Up(b) = ev {
+                if let Some(at) = self.captured.iter().position(|x| *x == b) {
+                    self.captured.remove(at);
+                    continue;
+                }
+            }
             actions.extend(self.gestures.feed(ev, now));
         }
         actions.extend(self.gestures.tick(now));
@@ -176,16 +208,12 @@ impl Session {
         self.sync_pad();
     }
 
-    pub fn set_menu_dpad_display(&mut self, enabled: bool) {
-        self.gestures.set_menu_dpad_display(enabled);
-    }
-
     fn sync_pad(&mut self) {
         for btn in self.app.taken_buttons() {
-            self.pad.apply(Action::GbaUp(*btn));
+            self.pad.apply(Action::GbaUp(btn));
         }
         if let Some(emu) = &self.emu {
-            emu.set_input(self.pad.mask());
+            emu.set_input(self.pad.mask(&self.app.controls()));
         }
     }
 

@@ -46,6 +46,8 @@ const SLOT_BACK_DARK_PNG: &[u8] = include_bytes!("../../../assets/slot_back_dark
 const SLOT_BACK_LIGHT_PNG: &[u8] = include_bytes!("../../../assets/slot_back_light.png");
 const SLOT_FRONT_DARK_PNG: &[u8] = include_bytes!("../../../assets/slot_front_dark.png");
 const SLOT_FRONT_LIGHT_PNG: &[u8] = include_bytes!("../../../assets/slot_front_light.png");
+const SLOT_PLUGGED_DARK_PNG: &[u8] = include_bytes!("../../../assets/slot_plugged_dark.png");
+const SLOT_PLUGGED_LIGHT_PNG: &[u8] = include_bytes!("../../../assets/slot_plugged_light.png");
 const PORT_DARK_PNG: &[u8] = include_bytes!("../../../assets/link_port_dark.png");
 const PORT_LIGHT_PNG: &[u8] = include_bytes!("../../../assets/link_port_light.png");
 const PLUG_HOST_PNG: &[u8] = include_bytes!("../../../assets/link_plug_host.png");
@@ -191,6 +193,16 @@ pub fn slot_front() -> &'static [u8] {
 pub fn slot_front_light() -> &'static [u8] {
     static P: OnceLock<Vec<u8>> = OnceLock::new();
     load(SLOT_FRONT_LIGHT_PNG, SLOT_W, SLOT_H, &P)
+}
+
+pub fn slot_plugged() -> &'static [u8] {
+    static P: OnceLock<Vec<u8>> = OnceLock::new();
+    load(SLOT_PLUGGED_DARK_PNG, SLOT_W, SLOT_H, &P)
+}
+
+pub fn slot_plugged_light() -> &'static [u8] {
+    static P: OnceLock<Vec<u8>> = OnceLock::new();
+    load(SLOT_PLUGGED_LIGHT_PNG, SLOT_W, SLOT_H, &P)
 }
 
 pub fn link_port() -> &'static [u8] {

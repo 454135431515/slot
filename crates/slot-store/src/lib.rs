@@ -1,4 +1,5 @@
 mod atomic;
+mod bindings;
 pub mod cart_shell;
 mod config;
 mod core;
@@ -13,6 +14,11 @@ mod slot_state;
 mod stamp;
 
 pub use atomic::atomic_write;
+pub use bindings::{
+    read_carousel, read_controls, read_shortcuts, restore_controls, write_carousel,
+    write_console_controls, write_game_controls, write_shortcuts, Binding, CarouselAction,
+    CarouselKeys, Controls, Device, GameButton, Modifier, Restored, Shortcut, ShortcutKeys,
+};
 pub use cart_shell::{Outline, ShellChoice, ShellFinish, CART_SHELL_FILE, LABELS_SHELL_FILE};
 pub use config::{move_config, CONFIG_DIR};
 pub use core::{

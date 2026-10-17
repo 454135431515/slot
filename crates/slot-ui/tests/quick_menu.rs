@@ -79,18 +79,28 @@ fn the_fast_forward_row_offers_the_four_ceilings_the_card_can_hold() {
 fn the_rows_run_in_the_order_the_user_chose() {
     assert_eq!(
         QuickRow::MAIN.map(QuickRow::label),
-        ["General", "Screen", "Gameplay", "About"]
+        [
+            "General",
+            "Screen",
+            "Gameplay",
+            "Shortcuts",
+            "Carousel",
+            "About"
+        ]
+    );
+    assert_eq!(
+        QuickRow::CAROUSEL.map(QuickRow::label),
+        [
+            "Recents",
+            "Game Titles",
+            "Previous Shelf",
+            "Next Shelf",
+            "Favorite"
+        ]
     );
     assert_eq!(
         QuickRow::GENERAL.map(QuickRow::label),
-        [
-            "Wallpaper",
-            "Wallpaper Tint",
-            "Theme",
-            "Recents",
-            "Game Titles",
-            "Date & Time"
-        ]
+        ["Wallpaper", "Wallpaper Tint", "Theme", "Date & Time"]
     );
     assert_eq!(
         QuickRow::SCREEN.map(QuickRow::label),
@@ -136,7 +146,14 @@ fn the_rows_run_in_the_order_the_user_chose() {
             QuickRow::PlayGameplay,
             QuickRow::ScreenGba,
             QuickRow::ScreenGbc,
-            QuickRow::ScreenGb
+            QuickRow::ScreenGb,
+            QuickRow::Carousel,
+            QuickRow::PlayControls,
+            QuickRow::Shortcuts,
+            QuickRow::PlaySave,
+            QuickRow::SaveConsole,
+            QuickRow::SaveGame,
+            QuickRow::SaveRestore
         ]
     );
     for page in [
@@ -298,8 +315,19 @@ fn the_in_game_pages_hold_their_rows_in_order() {
         ]
     );
     assert_eq!(
-        QuickRow::SETTINGS,
-        [QuickRow::PlayScreen, QuickRow::PlayGameplay]
+        QuickRow::SETTINGS.map(QuickRow::label),
+        ["Screen", "Gameplay", "Controls", "Save Changes"]
+    );
+    assert_eq!(
+        QuickRow::CONTROLS.map(QuickRow::label),
+        [
+            "Up", "Down", "Left", "Right", "A Button", "B Button", "Select", "Start", "L Button",
+            "R Button"
+        ]
+    );
+    assert_eq!(
+        QuickRow::SAVE.map(QuickRow::label),
+        ["Save for Console", "Save for Game", "Restore Defaults"]
     );
     assert_eq!(
         QuickRow::PLAY_SCREEN,
@@ -412,11 +440,11 @@ fn the_wallpaper_tint_reads_as_how_much_it_darkens() {
 }
 
 #[test]
-fn show_titles_sits_under_recents_on_the_general_page() {
-    let at = |r: QuickRow| QuickRow::GENERAL.iter().position(|g| *g == r);
+fn show_titles_sits_under_recents_on_the_carousel_page() {
+    let at = |r: QuickRow| QuickRow::CAROUSEL.iter().position(|g| *g == r);
     assert_eq!(
         at(QuickRow::ShowTitles),
         at(QuickRow::Recents).map(|i| i + 1)
     );
-    assert_eq!(QuickRow::ShowTitles.parent(), Some(QuickRow::General));
+    assert_eq!(QuickRow::ShowTitles.parent(), Some(QuickRow::Carousel));
 }

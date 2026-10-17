@@ -6,6 +6,7 @@ use crate::plate::{
 use crate::power_menu::{MENU_H, MENU_INK, MENU_PAD, MENU_PX};
 use crate::slot_chrome::{opening, MOUTH_H};
 use crate::text;
+use slot_store::{CarouselAction, GameButton, Shortcut};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum QuickRow {
@@ -48,10 +49,43 @@ pub enum QuickRow {
     GbaBezel,
     ScreenGbc,
     ScreenGb,
+    Carousel,
+    ShelfPrev,
+    ShelfNext,
+    ShelfFavorite,
+    PlayControls,
+    Shortcuts,
+    PlaySave,
+    GameUp,
+    GameDown,
+    GameLeft,
+    GameRight,
+    GameA,
+    GameB,
+    GameSelect,
+    GameStart,
+    GameL,
+    GameR,
+    ScSave,
+    ScLoad,
+    ScBrightUp,
+    ScBrightDown,
+    ScBlueDown,
+    ScBlueUp,
+    ScColour,
+    ScPaletteBack,
+    ScPaletteNext,
+    ScShaderNext,
+    ScShaderBack,
+    ScFastForward,
+    ScRewind,
+    SaveConsole,
+    SaveGame,
+    SaveRestore,
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 39] = [
+    pub const ALL: [QuickRow; 72] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Screen,
@@ -91,21 +125,97 @@ impl QuickRow {
         QuickRow::GbaBezel,
         QuickRow::ScreenGbc,
         QuickRow::ScreenGb,
+        QuickRow::Carousel,
+        QuickRow::ShelfPrev,
+        QuickRow::ShelfNext,
+        QuickRow::ShelfFavorite,
+        QuickRow::PlayControls,
+        QuickRow::Shortcuts,
+        QuickRow::PlaySave,
+        QuickRow::GameUp,
+        QuickRow::GameDown,
+        QuickRow::GameLeft,
+        QuickRow::GameRight,
+        QuickRow::GameA,
+        QuickRow::GameB,
+        QuickRow::GameSelect,
+        QuickRow::GameStart,
+        QuickRow::GameL,
+        QuickRow::GameR,
+        QuickRow::ScSave,
+        QuickRow::ScLoad,
+        QuickRow::ScBrightUp,
+        QuickRow::ScBrightDown,
+        QuickRow::ScBlueDown,
+        QuickRow::ScBlueUp,
+        QuickRow::ScColour,
+        QuickRow::ScPaletteBack,
+        QuickRow::ScPaletteNext,
+        QuickRow::ScShaderNext,
+        QuickRow::ScShaderBack,
+        QuickRow::ScFastForward,
+        QuickRow::ScRewind,
+        QuickRow::SaveConsole,
+        QuickRow::SaveGame,
+        QuickRow::SaveRestore,
     ];
 
-    pub const MAIN: [QuickRow; 4] = [
+    pub const MAIN: [QuickRow; 6] = [
         QuickRow::General,
         QuickRow::Screen,
         QuickRow::Game,
+        QuickRow::Shortcuts,
+        QuickRow::Carousel,
         QuickRow::About,
     ];
 
-    pub const GENERAL: [QuickRow; 6] = [
+    pub const CAROUSEL: [QuickRow; 5] = [
+        QuickRow::Recents,
+        QuickRow::ShowTitles,
+        QuickRow::ShelfPrev,
+        QuickRow::ShelfNext,
+        QuickRow::ShelfFavorite,
+    ];
+
+    pub const CONTROLS: [QuickRow; 10] = [
+        QuickRow::GameUp,
+        QuickRow::GameDown,
+        QuickRow::GameLeft,
+        QuickRow::GameRight,
+        QuickRow::GameA,
+        QuickRow::GameB,
+        QuickRow::GameSelect,
+        QuickRow::GameStart,
+        QuickRow::GameL,
+        QuickRow::GameR,
+    ];
+
+    pub const SHORTCUTS: [QuickRow; 13] = [
+        QuickRow::ScSave,
+        QuickRow::ScLoad,
+        QuickRow::ScBrightUp,
+        QuickRow::ScBrightDown,
+        QuickRow::ScBlueDown,
+        QuickRow::ScBlueUp,
+        QuickRow::ScColour,
+        QuickRow::ScPaletteBack,
+        QuickRow::ScPaletteNext,
+        QuickRow::ScShaderNext,
+        QuickRow::ScShaderBack,
+        QuickRow::ScFastForward,
+        QuickRow::ScRewind,
+    ];
+
+    pub const SAVE: [QuickRow; 3] = [
+        QuickRow::SaveConsole,
+        QuickRow::SaveGame,
+        QuickRow::SaveRestore,
+    ];
+
+    pub const GENERAL: [QuickRow; 4] = [
         QuickRow::Wallpaper,
         QuickRow::WallpaperTint,
         QuickRow::Theme,
-        QuickRow::Recents,
-        QuickRow::ShowTitles,
         QuickRow::DateTime,
     ];
 
@@ -147,7 +257,12 @@ impl QuickRow {
         QuickRow::ExitGame,
     ];
 
-    pub const SETTINGS: [QuickRow; 2] = [QuickRow::PlayScreen, QuickRow::PlayGameplay];
+    pub const SETTINGS: [QuickRow; 4] = [
+        QuickRow::PlayScreen,
+        QuickRow::PlayGameplay,
+        QuickRow::PlayControls,
+        QuickRow::PlaySave,
+    ];
 
     pub const PLAY_SCREEN: [QuickRow; 4] = [
         QuickRow::Shader,
@@ -182,13 +297,19 @@ impl QuickRow {
             QuickRow::Wallpaper
             | QuickRow::WallpaperTint
             | QuickRow::DateTime
-            | QuickRow::Theme
-            | QuickRow::Recents
-            | QuickRow::ShowTitles => &QuickRow::GENERAL,
+            | QuickRow::Theme => &QuickRow::GENERAL,
+            QuickRow::Recents | QuickRow::ShowTitles => &QuickRow::CAROUSEL,
             QuickRow::Resume | QuickRow::States | QuickRow::Settings | QuickRow::ExitGame => {
                 &QuickRow::PLAY
             }
-            QuickRow::PlayScreen | QuickRow::PlayGameplay => &QuickRow::SETTINGS,
+            QuickRow::PlayScreen
+            | QuickRow::PlayGameplay
+            | QuickRow::PlayControls
+            | QuickRow::PlaySave => &QuickRow::SETTINGS,
+            r if r.game_button().is_some() => &QuickRow::CONTROLS,
+            r if r.shortcut().is_some() => &QuickRow::SHORTCUTS,
+            r if r.carousel_action().is_some() => &QuickRow::CAROUSEL,
+            QuickRow::SaveConsole | QuickRow::SaveGame | QuickRow::SaveRestore => &QuickRow::SAVE,
             QuickRow::Shader | QuickRow::ColourCorrection | QuickRow::Palette | QuickRow::Bezel => {
                 &QuickRow::PLAY_SCREEN
             }
@@ -206,6 +327,10 @@ impl QuickRow {
             QuickRow::Wallpaper => Some(QuickRow::General),
             QuickRow::PlayScreen => Some(QuickRow::Settings),
             QuickRow::Shader => Some(QuickRow::PlayScreen),
+            QuickRow::GameUp => Some(QuickRow::PlayControls),
+            QuickRow::ScSave => Some(QuickRow::Shortcuts),
+            QuickRow::SaveConsole => Some(QuickRow::PlaySave),
+            QuickRow::Recents => Some(QuickRow::Carousel),
             _ => None,
         }
     }
@@ -235,6 +360,10 @@ impl QuickRow {
             QuickRow::Settings => Some(QuickRow::SETTINGS[0]),
             QuickRow::PlayScreen => Some(QuickRow::PLAY_SCREEN[0]),
             QuickRow::PlayGameplay => Some(QuickRow::GAME[0]),
+            QuickRow::PlayControls => Some(QuickRow::CONTROLS[0]),
+            QuickRow::Shortcuts => Some(QuickRow::SHORTCUTS[0]),
+            QuickRow::PlaySave => Some(QuickRow::SAVE[0]),
+            QuickRow::Carousel => Some(QuickRow::CAROUSEL[0]),
             QuickRow::ScreenGba => Some(QuickRow::SCREEN_GBA[0]),
             QuickRow::ScreenGbc => Some(QuickRow::SCREEN_GBC[0]),
             QuickRow::ScreenGb => Some(QuickRow::SCREEN_GB[0]),
@@ -286,6 +415,39 @@ impl QuickRow {
             QuickRow::States => "States",
             QuickRow::Settings => "Settings",
             QuickRow::ExitGame => "Exit Game",
+            QuickRow::Carousel => "Carousel",
+            QuickRow::PlayControls => "Controls",
+            QuickRow::Shortcuts => "Shortcuts",
+            QuickRow::PlaySave => "Save Changes",
+            QuickRow::SaveConsole => "Save for Console",
+            QuickRow::SaveGame => "Save for Game",
+            QuickRow::SaveRestore => "Restore Defaults",
+            QuickRow::GameUp
+            | QuickRow::GameDown
+            | QuickRow::GameLeft
+            | QuickRow::GameRight
+            | QuickRow::GameA
+            | QuickRow::GameB
+            | QuickRow::GameSelect
+            | QuickRow::GameStart
+            | QuickRow::GameL
+            | QuickRow::GameR => self.game_button().map_or("", GameButton::label),
+            QuickRow::ScSave
+            | QuickRow::ScLoad
+            | QuickRow::ScBrightUp
+            | QuickRow::ScBrightDown
+            | QuickRow::ScBlueDown
+            | QuickRow::ScBlueUp
+            | QuickRow::ScColour
+            | QuickRow::ScPaletteBack
+            | QuickRow::ScPaletteNext
+            | QuickRow::ScShaderNext
+            | QuickRow::ScShaderBack
+            | QuickRow::ScFastForward
+            | QuickRow::ScRewind => self.shortcut().map_or("", Shortcut::label),
+            QuickRow::ShelfPrev | QuickRow::ShelfNext | QuickRow::ShelfFavorite => {
+                self.carousel_action().map_or("", CarouselAction::label)
+            }
             QuickRow::PlayScreen => "Screen",
             QuickRow::PlayGameplay => "Gameplay",
             QuickRow::Shader => "Shader",
@@ -315,10 +477,67 @@ impl QuickRow {
                 | QuickRow::ExitGame
                 | QuickRow::PlayScreen
                 | QuickRow::PlayGameplay
+                | QuickRow::Carousel
+                | QuickRow::PlayControls
+                | QuickRow::Shortcuts
+                | QuickRow::PlaySave
+                | QuickRow::SaveConsole
+                | QuickRow::SaveGame
+                | QuickRow::SaveRestore
                 | QuickRow::ScreenGba
                 | QuickRow::ScreenGbc
                 | QuickRow::ScreenGb
         )
+    }
+
+    pub fn game_button(self) -> Option<GameButton> {
+        Some(match self {
+            QuickRow::GameUp => GameButton::Up,
+            QuickRow::GameDown => GameButton::Down,
+            QuickRow::GameLeft => GameButton::Left,
+            QuickRow::GameRight => GameButton::Right,
+            QuickRow::GameA => GameButton::A,
+            QuickRow::GameB => GameButton::B,
+            QuickRow::GameSelect => GameButton::Select,
+            QuickRow::GameStart => GameButton::Start,
+            QuickRow::GameL => GameButton::L,
+            QuickRow::GameR => GameButton::R,
+            _ => return None,
+        })
+    }
+
+    pub fn shortcut(self) -> Option<Shortcut> {
+        Some(match self {
+            QuickRow::ScSave => Shortcut::SaveState,
+            QuickRow::ScLoad => Shortcut::LoadState,
+            QuickRow::ScBrightUp => Shortcut::BrightnessUp,
+            QuickRow::ScBrightDown => Shortcut::BrightnessDown,
+            QuickRow::ScBlueDown => Shortcut::BlueLightDown,
+            QuickRow::ScBlueUp => Shortcut::BlueLightUp,
+            QuickRow::ScColour => Shortcut::ColorCorrection,
+            QuickRow::ScPaletteBack => Shortcut::PaletteBack,
+            QuickRow::ScPaletteNext => Shortcut::PaletteNext,
+            QuickRow::ScShaderNext => Shortcut::ShaderNext,
+            QuickRow::ScShaderBack => Shortcut::ShaderBack,
+            QuickRow::ScFastForward => Shortcut::FastForward,
+            QuickRow::ScRewind => Shortcut::Rewind,
+            _ => return None,
+        })
+    }
+
+    pub fn carousel_action(self) -> Option<CarouselAction> {
+        Some(match self {
+            QuickRow::ShelfPrev => CarouselAction::PreviousShelf,
+            QuickRow::ShelfNext => CarouselAction::NextShelf,
+            QuickRow::ShelfFavorite => CarouselAction::Favorite,
+            _ => return None,
+        })
+    }
+
+    pub fn binds(self) -> bool {
+        self.game_button().is_some()
+            || self.shortcut().is_some()
+            || self.carousel_action().is_some()
     }
 
     pub fn up(self, hidden: &[QuickRow]) -> QuickRow {
@@ -435,6 +654,8 @@ const CARET_GAP: f32 = 14.0;
 const CARET_PX: f32 = 24.0;
 const LEGEND_Y: f32 = 427.0;
 const DIM_INK: [u8; 3] = [0x9a, 0x9a, 0xa4];
+const DESCRIPTION_PX: f32 = 16.0;
+const DESCRIPTION_GAP: f32 = 8.0;
 const PANEL_GAP: f32 = 12.0;
 
 pub fn quick_label_face(row: QuickRow, lit: bool) -> UndoFace {
@@ -536,7 +757,7 @@ pub fn quick_caret_face(right: bool) -> UndoFace {
     UndoFace { rgba, w, h }
 }
 
-pub fn quick_legend_faces(ink: [u8; 3]) -> [UndoFace; 5] {
+pub fn quick_legend_faces(ink: [u8; 3]) -> [UndoFace; 7] {
     let hint = Some(ink);
     [
         with_hint(button_face(ButtonLegend::B), "Back", hint, true),
@@ -549,7 +770,47 @@ pub fn quick_legend_faces(ink: [u8; 3]) -> [UndoFace; 5] {
         with_hint(button_face(ButtonLegend::A), "Open", hint, false),
         with_hint(button_face(ButtonLegend::B), "Resume", hint, true),
         with_hint(button_face(ButtonLegend::X), "Restart", hint, false),
+        with_hint(button_face(ButtonLegend::A), "Set", hint, false),
+        with_hint(button_face(ButtonLegend::X), "Clear", hint, false),
     ]
+}
+
+pub fn quick_description_face(lines: &[&str]) -> UndoFace {
+    let Some(font) = text::label_font() else {
+        return UndoFace {
+            rgba: Vec::new(),
+            w: 0,
+            h: 0,
+        };
+    };
+    let line_h = (DESCRIPTION_PX * 1.4).ceil() as u32;
+    let faces: Vec<(Vec<u8>, u32)> = lines
+        .iter()
+        .map(|line| {
+            let layout = text::fit(font, line, OUT_W as f32, 1, DESCRIPTION_PX, DESCRIPTION_PX);
+            let w = text::line_width(font, &layout.lines[0], layout.px, layout.tracking).ceil()
+                as u32
+                + 2;
+            let mut rgba = vec![0u8; (w * line_h * 4) as usize];
+            text::draw_centred(&mut rgba, w, line_h, &layout, DIM_INK);
+            (rgba, w)
+        })
+        .collect();
+    let w = faces.iter().map(|(_, w)| *w).max().unwrap_or(0);
+    let h = line_h * faces.len() as u32;
+    let mut rgba = vec![0u8; (w * h * 4) as usize];
+    for (i, (face, fw)) in faces.iter().enumerate() {
+        crate::plate::blit(
+            &mut rgba,
+            w,
+            face,
+            *fw,
+            line_h,
+            (w - fw) / 2,
+            i as u32 * line_h,
+        );
+    }
+    UndoFace { rgba, w, h }
 }
 
 /// Cancel, Swap, Choose. Swap keeps the button before the word, the way the old arrows did.
@@ -631,13 +892,16 @@ fn button_pair(left: ButtonLegend, right: ButtonLegend) -> UndoFace {
     UndoFace { rgba, w, h }
 }
 
+pub type FacePair = [(TexId, u32, u32); 2];
+
 pub struct QuickMenuFaces {
     pub labels: Vec<[(TexId, u32, u32); 2]>,
     pub pointer: (TexId, u32, u32),
     pub values: Vec<[(TexId, u32, u32); 2]>,
     pub carets: [(TexId, u32, u32); 2],
-    pub legend: [(TexId, u32); 5],
-    pub legend_light: [(TexId, u32); 5],
+    pub legend: [(TexId, u32); 7],
+    pub legend_light: [(TexId, u32); 7],
+    pub descriptions: [(TexId, u32, u32); 2],
 }
 
 pub struct QuickMenu<'a> {
@@ -653,6 +917,8 @@ pub struct QuickMenu<'a> {
     pub gb_bezel: Option<[(TexId, u32, u32); 2]>,
     pub gbc_bezel: Option<[(TexId, u32, u32); 2]>,
     pub bezel: Option<[(TexId, u32, u32); 2]>,
+    pub bound: Option<&'a [Option<FacePair>]>,
+    pub description: Option<(TexId, u32, u32)>,
     pub over_game: bool,
     /// The carousel footer carries the legends, so the centred pair is not drawn.
     pub footer_legends: bool,
@@ -692,8 +958,10 @@ impl QuickMenu<'_> {
             .map(|l| l[1].1)
             .max()
             .unwrap_or(0);
-        for row in self.row.shown(self.hidden) {
-            let y = quick_row_top(row, self.hidden) + TYPE_DROP;
+        let shown = self.row.shown(self.hidden);
+        let (start, len) = quick_window(self.row, self.hidden);
+        for row in shown.into_iter().skip(start).take(len) {
+            let y = quick_row_top_at(row, self.row, self.hidden) + TYPE_DROP;
             let lit = row == self.row;
             if let Some(&(tex, w, h)) = faces.labels.get(row.index()).map(|l| &l[lit as usize]) {
                 let x = match row.centred() {
@@ -715,6 +983,10 @@ impl QuickMenu<'_> {
                 QuickRow::GbBezel => self.gb_bezel.map(|c| c[lit as usize]),
                 QuickRow::GbcBezel => self.gbc_bezel.map(|c| c[lit as usize]),
                 QuickRow::Bezel => self.bezel.map(|c| c[lit as usize]),
+                _ if row.binds() => self
+                    .bound
+                    .and_then(|b| b.get(row.index()).copied().flatten())
+                    .map(|c| c[lit as usize]),
                 _ => self.values[row.index()]
                     .and_then(|v| faces.values.get(v.index()))
                     .map(|v| v[lit as usize]),
@@ -722,7 +994,7 @@ impl QuickMenu<'_> {
             let Some((tex, w, h)) = value else {
                 continue;
             };
-            if !lit || row.opens() {
+            if !lit || row.opens() || row.binds() {
                 push(out, tex, right + pad - w as f32, y, w, h);
                 continue;
             }
@@ -733,10 +1005,14 @@ impl QuickMenu<'_> {
             push(out, tex, vx, y, w, h);
             push(out, left_tex, vx + pad - CARET_GAP - lw as f32, y, lw, lh);
         }
+        if let Some((tex, w, h)) = self.description {
+            let y = OUT_H as f32 - MOUTH_H - h as f32 - DESCRIPTION_GAP;
+            push(out, tex, self.canvas.centred(w as f32), y, w, h);
+        }
         if self.over_game || self.footer_legends {
             return;
         }
-        let [back, change, open, resume, _] = faces.legend;
+        let [back, change, open, resume, ..] = faces.legend;
         let back = match self.row.page() == QuickRow::PLAY {
             true => resume,
             false => back,
@@ -779,13 +1055,41 @@ pub fn draw_menu_ground(canvas: Canvas, ground: Option<TexId>, out: &mut Vec<Dra
     }
 }
 
-pub fn quick_row_top(row: QuickRow, hidden: &[QuickRow]) -> f32 {
-    let rows = QUICK_PITCH * row.shown(hidden).len() as f32;
+pub const QUICK_VISIBLE: usize = 6;
+
+fn scrolls(page: &[QuickRow]) -> bool {
+    [
+        &QuickRow::CONTROLS[..],
+        &QuickRow::SHORTCUTS,
+        &QuickRow::CAROUSEL,
+    ]
+    .contains(&page)
+}
+
+pub fn quick_window(selected: QuickRow, hidden: &[QuickRow]) -> (usize, usize) {
+    let count = selected.shown(hidden).len();
+    if !scrolls(selected.page()) || count <= QUICK_VISIBLE {
+        return (0, count);
+    }
+    let at = selected.position(hidden);
+    let start = at
+        .saturating_sub(QUICK_VISIBLE / 2)
+        .min(count - QUICK_VISIBLE);
+    (start, QUICK_VISIBLE)
+}
+
+pub fn quick_row_top_at(row: QuickRow, selected: QuickRow, hidden: &[QuickRow]) -> f32 {
+    let (start, len) = quick_window(selected, hidden);
+    let rows = QUICK_PITCH * len as f32;
     let top = match row.page() == QuickRow::PLAY_SCREEN {
         true => OUT_H as f32 - MOUTH_H - PANEL_GAP - rows,
         false => (LEGEND_Y - rows) / 2.0,
     };
-    top + QUICK_PITCH * row.position(hidden) as f32
+    top + QUICK_PITCH * (row.position(hidden) as f32 - start as f32)
+}
+
+pub fn quick_row_top(row: QuickRow, hidden: &[QuickRow]) -> f32 {
+    quick_row_top_at(row, row, hidden)
 }
 
 fn push(out: &mut Vec<Draw>, tex: TexId, x: f32, y: f32, w: u32, h: u32) {

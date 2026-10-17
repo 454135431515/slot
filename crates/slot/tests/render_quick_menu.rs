@@ -340,3 +340,52 @@ fn the_about_label_is_on_the_tinted_wallpaper() {
         );
     }
 }
+
+#[test]
+fn the_carousel_page_renders() {
+    let Ok(surface) = HeadlessSurface::new() else {
+        return;
+    };
+    let Ok(mut c) = Compositor::new(&surface) else {
+        return;
+    };
+    let d = tmp_root_with_carts(&["Emerald", "Fusion"]);
+    clocked(d.path());
+    let mut f = Frontend::boot(Box::new(SimPlatform::at(d.path().to_path_buf())));
+    f.upload_faces(&mut c);
+    let mut input = Script(VecDeque::new());
+    tap(&mut f, &mut input, Btn::Menu);
+    for _ in 0..QuickRow::Carousel.position(&[]) {
+        tap(&mut f, &mut input, Btn::Down);
+    }
+    composed(&mut f, &mut c, "main");
+    tap(&mut f, &mut input, Btn::A);
+    assert_eq!(f.app().quick_menu(), Some(QuickRow::Recents));
+    composed(&mut f, &mut c, "carousel");
+    tap(&mut f, &mut input, Btn::Down);
+    tap(&mut f, &mut input, Btn::Down);
+    assert_eq!(f.app().quick_menu(), Some(QuickRow::ShelfPrev));
+    composed(&mut f, &mut c, "carousel-keys");
+}
+
+#[test]
+fn the_shortcuts_page_renders() {
+    let Ok(surface) = HeadlessSurface::new() else {
+        return;
+    };
+    let Ok(mut c) = Compositor::new(&surface) else {
+        return;
+    };
+    let d = tmp_root_with_carts(&["Emerald", "Fusion"]);
+    clocked(d.path());
+    let mut f = Frontend::boot(Box::new(SimPlatform::at(d.path().to_path_buf())));
+    f.upload_faces(&mut c);
+    let mut input = Script(VecDeque::new());
+    tap(&mut f, &mut input, Btn::Menu);
+    for _ in 0..QuickRow::Shortcuts.position(&[]) {
+        tap(&mut f, &mut input, Btn::Down);
+    }
+    tap(&mut f, &mut input, Btn::A);
+    assert_eq!(f.app().quick_menu(), Some(QuickRow::ScSave));
+    composed(&mut f, &mut c, "shortcuts");
+}

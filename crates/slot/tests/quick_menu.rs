@@ -232,6 +232,8 @@ fn up_and_down_move_the_bar_and_wrap_at_the_ends() {
         QuickRow::General,
         QuickRow::Screen,
         QuickRow::Game,
+        QuickRow::Shortcuts,
+        QuickRow::Carousel,
         QuickRow::About,
         QuickRow::General,
     ] {
@@ -639,11 +641,11 @@ fn fake_faces(a: &mut App) {
     let id = TexId::from_raw;
     a.set_quick_menu_faces(QuickMenuFaces {
         labels: (0..QuickRow::ALL.len())
-            .map(|i| [(id(100 + i), 200, 40), (id(130 + i), 200, 40)])
+            .map(|i| [(id(1000 + i), 200, 40), (id(1100 + i), 200, 40)])
             .collect(),
         pointer: (id(700), 32, 48),
         values: (0..QuickValue::ALL.len())
-            .map(|i| [(id(200 + i), 60, 40), (id(210 + i), 60, 40)])
+            .map(|i| [(id(2000 + i), 60, 40), (id(2100 + i), 60, 40)])
             .collect(),
         carets: [(id(300), 10, 40), (id(301), 10, 40)],
         legend: [
@@ -652,6 +654,8 @@ fn fake_faces(a: &mut App) {
             (id(402), 80),
             (id(403), 90),
             (id(404), 85),
+            (id(405), 75),
+            (id(406), 95),
         ],
         legend_light: [
             (id(400), 70),
@@ -659,24 +663,27 @@ fn fake_faces(a: &mut App) {
             (id(402), 80),
             (id(403), 90),
             (id(404), 85),
+            (id(405), 75),
+            (id(406), 95),
         ],
+        descriptions: [(id(410), 300, 44), (id(411), 340, 44)],
     });
     a.set_quick_clock_faces((id(500), 150, 40), (id(501), 150, 40));
 }
 
 fn label(row: QuickRow, lit: bool) -> usize {
     if lit {
-        130 + row.index()
+        1100 + row.index()
     } else {
-        100 + row.index()
+        1000 + row.index()
     }
 }
 
 fn value(v: QuickValue, lit: bool) -> usize {
     if lit {
-        210 + v.index()
+        2100 + v.index()
     } else {
-        200 + v.index()
+        2000 + v.index()
     }
 }
 
@@ -949,7 +956,7 @@ fn no_row_in_hand_runs_its_arrows_into_its_label() {
             .enumerate()
             .map(|(i, r)| {
                 let w = slot_ui::quick_label_face(*r, true).w;
-                [(id(100 + i), w, 40), (id(130 + i), w, 40)]
+                [(id(1000 + i), w, 40), (id(1100 + i), w, 40)]
             })
             .collect(),
         pointer: (id(700), 32, 48),
@@ -958,7 +965,7 @@ fn no_row_in_hand_runs_its_arrows_into_its_label() {
             .enumerate()
             .map(|(i, v)| {
                 let w = slot_ui::quick_value_face(v.text(), true).w;
-                [(id(200 + i), w, 40), (id(230 + i), w, 40)]
+                [(id(2000 + i), w, 40), (id(2100 + i), w, 40)]
             })
             .collect(),
         carets: [false, true].map(|right| {
@@ -971,6 +978,8 @@ fn no_row_in_hand_runs_its_arrows_into_its_label() {
             (id(402), 80),
             (id(403), 90),
             (id(404), 85),
+            (id(405), 75),
+            (id(406), 95),
         ],
         legend_light: [
             (id(400), 70),
@@ -978,7 +987,10 @@ fn no_row_in_hand_runs_its_arrows_into_its_label() {
             (id(402), 80),
             (id(403), 90),
             (id(404), 85),
+            (id(405), 75),
+            (id(406), 95),
         ],
+        descriptions: [(id(410), 300, 44), (id(411), 340, 44)],
     });
     for page in [
         &QuickRow::SCREEN_GBA[..],
@@ -986,6 +998,7 @@ fn no_row_in_hand_runs_its_arrows_into_its_label() {
         &QuickRow::SCREEN_GB[..],
         &QuickRow::GAME[..],
         &QuickRow::GENERAL[..],
+        &QuickRow::CAROUSEL[..],
     ] {
         for &row in page {
             if row.opens() || a.hidden_rows().contains(&row) {
@@ -993,7 +1006,7 @@ fn no_row_in_hand_runs_its_arrows_into_its_label() {
             }
             open_at(&mut a, row);
             let out = frame(&a);
-            let [lx, _, lw, _] = placed(&out, 130 + row.index()).expect("the lit label");
+            let [lx, _, lw, _] = placed(&out, 1100 + row.index()).expect("the lit label");
             let label_ends = lx + lw - MENU_PAD as f32;
             if let Some([cx, ..]) = placed(&out, 300) {
                 assert!(
