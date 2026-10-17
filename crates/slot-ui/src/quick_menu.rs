@@ -585,6 +585,14 @@ pub fn link_button_legends(ink: [u8; 3]) -> Vec<UndoFace> {
     ]
 }
 
+pub fn repair_legends(ink: [u8; 3]) -> [UndoFace; 2] {
+    let hint = Some(ink);
+    [
+        with_hint(button_face(ButtonLegend::B), "Not now", hint, true),
+        with_hint(button_face(ButtonLegend::A), "Repair", hint, false),
+    ]
+}
+
 /// `hint_on_right` puts the word after the button, for a legend parked on the left of the footer.
 fn with_hint(button: UndoFace, label: &str, ink: Option<[u8; 3]>, hint_on_right: bool) -> UndoFace {
     let word = match ink {

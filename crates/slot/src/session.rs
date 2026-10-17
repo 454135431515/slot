@@ -162,6 +162,7 @@ impl Session {
     pub fn feed(&mut self, events: impl IntoIterator<Item = RawEvent>, now: Millis) {
         let mut actions = Vec::new();
         let latched = self.gestures.ff_latched();
+        self.gestures.set_repair_chord(self.app.repair_offered());
         for ev in events {
             actions.extend(self.gestures.feed(ev, now));
         }
@@ -380,7 +381,10 @@ impl Session {
     }
 
     fn held(&self) -> bool {
-        self.app.game_menu_open() || self.app.in_game_menu().is_some() || self.app.shutting_down()
+        self.app.game_menu_open()
+            || self.app.in_game_menu().is_some()
+            || self.app.repair_prompt()
+            || self.app.shutting_down()
     }
 
     fn dozing(&self) -> bool {

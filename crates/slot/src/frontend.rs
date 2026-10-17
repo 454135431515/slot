@@ -9,12 +9,13 @@ use slot_store::{format_stamp, BezelPick, Platform as Console};
 use slot_ui::{
     badge_face, bezel_face, cart_shadow, chip_face, chip_shadow_face, core_button_legends,
     date_time_text, default_game_bezel_face, footer_ink, game_bezel_face, gb_cart_shadow, hhmm,
-    hint_face, icon_face, link_button_legends, menu_face, photo_face, quick_caret_face,
-    quick_label_face, quick_legend_faces, quick_pointer_face, quick_value_face, rebuild_count_face,
-    rebuild_title_face, set_clock_hint_face, slot_back, slot_back_light, slot_front,
-    slot_front_light, socket_face, sticker_face, title_face, toast_face, wallpaper_face, word_ink,
-    CartFace, GbShell, Icon, LinkBadge, PowerChoice, QuickMenuFaces, QuickRow, QuickValue,
-    RebuildScreen, StickerFields, Toast, UndoFace, ALERT_PX, BOLT_PX, HUD_ICON_PX, HUD_INK, LEGEND,
+    hint_face, icon_face, link_button_legends, menu_detail_face, menu_face, photo_face,
+    quick_caret_face, quick_label_face, quick_legend_faces, quick_pointer_face, quick_value_face,
+    rebuild_count_face, rebuild_title_face, repair_legends, set_clock_hint_face, slot_back,
+    slot_back_light, slot_front, slot_front_light, socket_face, sticker_face, title_face,
+    toast_face, wallpaper_face, word_ink, CartFace, GbShell, Icon, LinkBadge, PowerChoice,
+    QuickMenuFaces, QuickRow, QuickValue, RebuildScreen, StickerFields, Toast, UndoFace, ALERT_PX,
+    BOLT_PX, HUD_ICON_PX, HUD_INK, LEGEND,
 };
 
 use crate::app::{App, LinkRow, Phase};
@@ -366,6 +367,7 @@ impl Frontend {
         let shadow = cart(faces.chip_shadow);
         let mut up = |f: UndoFace| (compositor.create_texture(f.w, f.h, &f.rgba), f.w, f.h);
         let lines = faces.shutdown.into_iter().map(&mut up).collect();
+        let repair = faces.repair.into_iter().map(&mut up).collect();
         let labels = faces
             .quick_labels
             .into_iter()
@@ -416,6 +418,7 @@ impl Frontend {
         let app = self.session.app_mut();
         app.set_link_badge_faces(link_badges);
         app.set_shutdown_faces(lines);
+        app.set_repair_faces(repair);
         app.set_quick_menu_faces(QuickMenuFaces {
             labels,
             pointer,
@@ -717,6 +720,14 @@ impl Frontend {
         self.session.app_mut().restart();
     }
 
+    pub fn repairing(&self) -> bool {
+        self.session.app().ready_to_repair()
+    }
+
+    pub fn repair(&mut self) {
+        self.session.app_mut().repair();
+    }
+
     pub fn poweroff(&mut self) {
         self.session.app_mut().poweroff();
     }
@@ -757,6 +768,7 @@ struct UiFaces {
     link_steps: Vec<UndoFace>,
     link_fails: Vec<UndoFace>,
     toasts: Vec<CartFace>,
+    repair: Vec<UndoFace>,
 }
 
 impl UiFaces {
@@ -778,6 +790,7 @@ impl UiFaces {
                     menu_face(match c {
                         PowerChoice::Restart => "Restarting",
                         PowerChoice::PowerOff => "Powering Down",
+                        PowerChoice::Repair => "Repairing SD Card",
                     })
                 })
                 .collect(),
@@ -814,6 +827,15 @@ impl UiFaces {
                 .map(|f| menu_face(f.line()))
                 .collect(),
             toasts: Toast::all().into_iter().map(toast_face).collect(),
+            repair: {
+                let [not_now, repair] = repair_legends(footer_ink(false));
+                vec![
+                    menu_face("Repair the SD card?"),
+                    menu_detail_face("slot restarts when it is done."),
+                    not_now,
+                    repair,
+                ]
+            },
         }
     }
 }

@@ -70,11 +70,11 @@ pub use plate::{
     HINT_H, LEGEND_GAP, TITLE_H, TITLE_LINE_H, TITLE_W,
 };
 pub use polaroids::{photo_face, PhotoFace, Polaroids, DOT, LEGEND, PHOTO_H, PHOTO_W};
-pub use power_menu::{menu_face, PowerChoice, MENU_PAD};
+pub use power_menu::{menu_detail_face, menu_face, PowerChoice, MENU_PAD};
 pub use quick_menu::{
     core_button_legends, draw_menu_ground, link_button_legends, quick_caret_face, quick_label_face,
-    quick_legend_faces, quick_pointer_face, quick_row_top, quick_value_face, QuickMenu,
-    QuickMenuFaces, QuickRow, QuickValue, QUICK_EDGE, QUICK_LABEL_X, QUICK_PITCH,
+    quick_legend_faces, quick_pointer_face, quick_row_top, quick_value_face, repair_legends,
+    QuickMenu, QuickMenuFaces, QuickRow, QuickValue, QUICK_EDGE, QUICK_LABEL_X, QUICK_PITCH,
 };
 pub use rebuild::{rebuild_count_face, rebuild_title_face, RebuildScreen};
 pub use refusal::Refusal;

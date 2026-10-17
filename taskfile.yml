@@ -5,6 +5,8 @@ vars:
   GPSP_HOST: vendor/gpsp_libretro.dylib
   MGBA_COMMIT: e31759b24e7a4e3899285ff720d7b573ac328ae7
   GPSP_COMMIT: 7b2dd37394e2822110cacef321e9bb291a305b77
+  EXFATPROGS_VERSION: 1.4.3
+  EXFATPROGS_SHA256: 4b5052cba6ff9f6dcb1c63eeeac328620472c5b0b3caf3d38e4ada50e75469d3
   SLOT_IN_PROCESS: >-
     --test bios --test core --test core_options --test e2e --test emu --test gb_palette_recolour --test gpsp
     --test link_ui --test mgba_gb_link --test mgba_link --test render_colour_correction
@@ -94,6 +96,7 @@ tasks:
       - sh card/test-led.sh
       - sh card/test-coresave.sh
       - sh card/test-launch.sh
+      - sh card/test-repair.sh
 
   core:
     desc: >-
@@ -270,6 +273,32 @@ tasks:
     cmds:
       - sh cores/gpsp/test/run.sh vendor/gpsp-src.tar.gz
 
+  fsck:exfat:
+    desc: >-
+      Build a static aarch64 fsck.exfat from the pinned exfatprogs release, whose archive ships
+      beside it as its GPL-2.0 corresponding source
+    status:
+      - test -f vendor/fsck.exfat
+      - test -f vendor/exfatprogs-{{.EXFATPROGS_VERSION}}.tar.gz
+    cmds:
+      - |
+        set -euo pipefail
+        mkdir -p vendor
+        rm -f vendor/fsck.exfat vendor/exfatprogs-*.tar.gz
+        curl -fsSL -o vendor/exfatprogs-{{.EXFATPROGS_VERSION}}.tar.gz \
+          "https://github.com/exfatprogs/exfatprogs/releases/download/{{.EXFATPROGS_VERSION}}/exfatprogs-{{.EXFATPROGS_VERSION}}.tar.gz"
+        echo "{{.EXFATPROGS_SHA256}}  vendor/exfatprogs-{{.EXFATPROGS_VERSION}}.tar.gz" | shasum -a 256 -c -
+      - task: device:sh
+        vars:
+          CMD: >-
+            set -e; rm -rf target-device/exfatprogs; mkdir -p target-device/exfatprogs;
+            tar -xzf vendor/exfatprogs-{{.EXFATPROGS_VERSION}}.tar.gz -C target-device/exfatprogs;
+            cd target-device/exfatprogs/exfatprogs-{{.EXFATPROGS_VERSION}};
+            ./configure --quiet; make -s -j4 LDFLAGS=-all-static;
+            strip fsck/fsck.exfat; cp fsck/fsck.exfat ../../../vendor/fsck.exfat
+      - file vendor/fsck.exfat | grep -q 'aarch64.*statically linked'
+      - 'echo "built vendor/fsck.exfat from exfatprogs {{.EXFATPROGS_VERSION}}"'
+
   device:sh:
     desc: Run CMD on the box the device build wants, fetching one if this is not it
     internal: true
@@ -308,7 +337,7 @@ tasks:
 
   dist:device:
     desc: Build the SD2 tree for an H700 device, OUT defaults to ./dist-device
-    deps: [core:device, core:gpsp, build:device]
+    deps: [core:device, core:gpsp, fsck:exfat, build:device]
     vars:
       OUT: '{{.OUT | default "dist-device"}}'
     cmds:
@@ -322,7 +351,9 @@ tasks:
       - file vendor/gpsp_libretro.so | grep -q aarch64
       - cp vendor/mgba_libretro.so {{.OUT}}/System/
       - cp vendor/gpsp_libretro.so {{.OUT}}/System/
+      - cp vendor/fsck.exfat {{.OUT}}/System/
       - cp -r licenses {{.OUT}}/System/licenses
+      - cp vendor/exfatprogs-{{.EXFATPROGS_VERSION}}.tar.gz {{.OUT}}/System/licenses/
       - |
         set -euo pipefail
         sha="$(cat vendor/gpsp-src.sha)"
@@ -342,7 +373,7 @@ tasks:
 
   deploy:device:
     desc: Build and push onto a device over adb, then restart it. SD defaults to /mnt/sdcard
-    deps: [core:device, core:gpsp, build:device]
+    deps: [core:device, core:gpsp, fsck:exfat, build:device]
     vars:
       SD: '{{.SD | default "/mnt/sdcard"}}'
     cmds:
@@ -353,7 +384,9 @@ tasks:
       - for f in card/System/*; do adb push "$f" '{{.SD}}/System/'; done
       - adb push vendor/mgba_libretro.so '{{.SD}}/System/mgba_libretro.so'
       - adb push vendor/gpsp_libretro.so '{{.SD}}/System/gpsp_libretro.so'
+      - adb push vendor/fsck.exfat '{{.SD}}/System/fsck.exfat'
       - adb push licenses '{{.SD}}/System/'
+      - adb push vendor/exfatprogs-{{.EXFATPROGS_VERSION}}.tar.gz '{{.SD}}/System/licenses/'
       - |
         set -euo pipefail
         sha="$(cat vendor/gpsp-src.sha)"

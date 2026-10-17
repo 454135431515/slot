@@ -48,6 +48,7 @@ pub enum Action {
     PowerOff,
     LidClose,
     LidOpen,
+    RepairCard,
 }
 
 #[derive(Copy, Clone, Default)]
@@ -66,6 +67,7 @@ enum Select {
 pub struct Gestures {
     select: Select,
     menu_dpad_display: bool,
+    repair_chord: bool,
     chord_held: u16,
     menu_down_at: Option<Millis>,
     menu_last_tap: Option<Millis>,
@@ -103,6 +105,10 @@ impl Gestures {
 
     pub fn set_menu_dpad_display(&mut self, enabled: bool) {
         self.menu_dpad_display = enabled;
+    }
+
+    pub fn set_repair_chord(&mut self, on: bool) {
+        self.repair_chord = on;
     }
 
     pub fn ff_latched(&self) -> bool {
@@ -175,7 +181,7 @@ impl Gestures {
             self.chord_held |= bit;
             return vec![action];
         }
-        if let (true, Some((bit, action))) = (self.chording(now), chord(b)) {
+        if let (true, Some((bit, action))) = (self.chording(now), self.select_chord(b)) {
             self.mark_chorded();
             self.chord_held |= bit;
             return vec![action];
@@ -201,7 +207,7 @@ impl Gestures {
     }
 
     fn up(&mut self, b: Btn, now: Millis) -> Vec<Action> {
-        if let Some((bit, _)) = chord(b) {
+        if let Some(bit) = held_bit(b) {
             if self.chord_held & bit != 0 {
                 self.chord_held &= !bit;
                 return Vec::new();
@@ -434,6 +440,24 @@ impl Gestures {
             && (self.menu_down_at.is_some() || self.menu_display_chorded))
             .then(|| display_chord(b))
             .flatten()
+    }
+}
+
+const REPAIR_BIT: u16 = 8192;
+
+impl Gestures {
+    fn select_chord(&self, b: Btn) -> Option<(u16, Action)> {
+        match b {
+            Btn::Start if self.repair_chord => Some((REPAIR_BIT, Action::RepairCard)),
+            _ => chord(b),
+        }
+    }
+}
+
+fn held_bit(b: Btn) -> Option<u16> {
+    match b {
+        Btn::Start => Some(REPAIR_BIT),
+        _ => chord(b).map(|(bit, _)| bit),
     }
 }
 

@@ -2,6 +2,7 @@
 
 ## [1.8.0](https://github.com/BrandonKowalski/slot/releases/tag/v1.8.0)
 
+- When the SD card turns read-only, SELECT + START repairs it: slot steps aside, checks FAT32 or exFAT, and restarts. (#72, #111)
 - Run-Ahead is removed. It scrambled saves in games with a 128 KB flash chip, such as Super Mario Advance 4. (#104)
 - Loading a state while a game is saving to a 128 KB flash chip no longer writes the save into the wrong half of the chip.
 

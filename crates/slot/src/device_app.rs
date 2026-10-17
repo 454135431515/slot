@@ -148,6 +148,9 @@ pub fn run() {
         if frontend.restarting() {
             frontend.restart();
         }
+        if frontend.repairing() {
+            frontend.repair();
+        }
         if frontend.powering_off() {
             frontend.poweroff();
             return;
