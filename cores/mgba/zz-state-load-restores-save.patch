@@ -1,0 +1,11 @@
+--- a/src/platform/libretro/libretro.c
++++ b/src/platform/libretro/libretro.c
+@@ -2927,7 +2927,7 @@
+ 	}
+ #endif
+ 	struct VFile* vfm = VFileFromConstMemory(data, size);
+-	bool success = mCoreLoadStateNamed(core, vfm, SAVESTATE_RTC);
++	bool success = mCoreLoadStateNamed(core, vfm, SAVESTATE_SAVEDATA | SAVESTATE_RTC);
+ 	vfm->close(vfm);
+ 	return success;
+ }

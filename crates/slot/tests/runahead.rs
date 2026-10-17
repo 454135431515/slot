@@ -8,6 +8,7 @@ use slot::app::{runahead_for, Phase};
 use slot::audio::{AudioSink, Ring, StubSink};
 use slot::core::apply_core_options;
 use slot::emu::{CoreState, EmuHandle, Speed};
+use slot::persist::Snapshot;
 use slot::session::Session;
 use slot_input::Millis;
 use slot_retro::{
@@ -571,5 +572,96 @@ fn on_mgba_with_local_roms_the_ring_gets_as_much_sound_as_off_at_every_setting()
                  gave {off_from_there}"
             );
         }
+    }
+}
+
+/// Writes 0xA5 to SRAM[0] on a frame where A is down for the second frame running, and turns
+/// pixel 0 white on that same frame. A write at boot makes the save SRAM from the start.
+fn save_rom() -> Vec<u8> {
+    const CODE: [u32; 28] = [
+        0xe3a00301, 0xe3a0540e, 0xe3a0105a, 0xe5c51001, 0xe3a01b01, 0xe3811003, 0xe5801000,
+        0xe3a02406, 0xe3a03000, 0xe3e0c902, 0xe2807e13, 0xe3a06000, 0xe3a0a0a5, 0xe1d040b6,
+        0xe35400a0, 0x1afffffc, 0xe1d740b0, 0xe2044001, 0xe2244001, 0xe0149006, 0x15c5a000,
+        0x11c2c0b0, 0x01c230b0, 0xe1a06004, 0xe1d040b6, 0xe35400a0, 0x0afffffc, 0xeafffff0,
+    ];
+    rom_running(&CODE)
+}
+
+fn rom_running(code: &[u32]) -> Vec<u8> {
+    let mut rom = common::gba_rom();
+    for (i, w) in code.iter().enumerate() {
+        rom[0xc0 + i * 4..0xc4 + i * 4].copy_from_slice(&w.to_le_bytes());
+    }
+    rom
+}
+
+fn save_rom_on_mgba(name: &str, ahead: u8) -> Option<EmuHandle> {
+    let dylib = common::vendored_core()?;
+    let rom = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
+    std::fs::write(&rom, save_rom()).expect("write rom");
+    let root = tempfile::tempdir().expect("a temporary root");
+    let mut core = LibretroCore::open_with(&dylib, root.path(), root.path())
+        .expect("the vendored core would not open, is another one still running?");
+    apply_core_options(
+        &mut core,
+        Core::Mgba,
+        Platform::Gba,
+        "auto",
+        false,
+        false,
+        None,
+    );
+    Some(driven(Box::new(core), rom, ahead))
+}
+
+#[test]
+fn on_mgba_with_run_ahead_on_a_save_the_game_writes_is_in_save_ram_by_the_next_present() {
+    let _g = common::core_lock();
+    let Some(emu) = save_rom_on_mgba("save-written.gba", 1) else {
+        eprintln!("no vendored mGBA core on this host, skipping");
+        return;
+    };
+    let snapshot = emu.snapshot();
+    for _ in 0..10 {
+        present(&emu);
+    }
+    emu.set_input(ButtonMask(ButtonMask::A));
+    present(&emu);
+    present(&emu);
+    emu.set_input(ButtonMask(0));
+    let sav = snapshot.save_ram().expect("mGBA gave no save ram");
+    assert_eq!(
+        sav[0], 0xA5,
+        "the game wrote its save on the last present and save ram does not have it yet, so a \
+         card write now would miss it"
+    );
+}
+
+#[test]
+fn on_mgba_a_save_write_made_only_in_a_guessed_frame_never_reaches_save_ram() {
+    let _g = common::core_lock();
+    let Some(emu) = save_rom_on_mgba("save-guessed.gba", 0) else {
+        eprintln!("no vendored mGBA core on this host, skipping");
+        return;
+    };
+    let snapshot = emu.snapshot();
+    for _ in 0..10 {
+        present(&emu);
+    }
+    emu.set_runahead(1);
+    emu.set_input(ButtonMask(ButtonMask::A));
+    let picture = present(&emu);
+    emu.set_input(ButtonMask(0));
+    assert!(
+        picture[..3].iter().all(|&c| c > 0x80),
+        "the guessed frame never took the write, so this proves nothing"
+    );
+    for p in 0..30 {
+        let sav = snapshot.save_ram().expect("mGBA gave no save ram");
+        assert_ne!(
+            sav[0], 0xA5,
+            "{p} presents after it, a save write from a frame the game never played is in save ram"
+        );
+        present(&emu);
     }
 }
