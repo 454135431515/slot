@@ -1,0 +1,138 @@
+--- a/src/platform/libretro/libretro.c
++++ b/src/platform/libretro/libretro.c
+@@ -2879,6 +2879,89 @@
+ }
+ #endif
+ 
++#ifdef M_CORE_GBA
++// A load rebuilds the PSG from register write-backs, which carry none of the write-only
++// frequency bits, and from a PSG state that leaves parts of each channel out (the sweep's
++// countdown, the wave channel's step timer). Run-ahead loads every frame, so a held note would
++// drop to the channel's lowest pitch and the wave and sweep would lose their timing. States
++// saved here carry the four channels as they are, at the end, and a load puts them back.
++// Anything without this tail (an older state, another build's layout) loads as before.
++#define PSG_TAIL_MAGIC 0x31475350 // "PSG1"
++
++struct PSGTail {
++	struct GBAudioSquareChannel ch1;
++	struct GBAudioSquareChannel ch2;
++	struct GBAudioWaveChannel ch3;
++	struct GBAudioNoiseChannel ch4;
++	int frame;
++	int skipFrame;
++	bool playing[4];
++	uint32_t size;
++	uint32_t magic;
++};
++
++static size_t _psgTailSize(void) {
++	return !linkMode && core->platform(core) == mPLATFORM_GBA ? sizeof(struct PSGTail) : 0;
++}
++
++static void _savePSGTail(void* at) {
++	struct GBAudio* psg = &((struct GBA*) core->board)->audio.psg;
++	int32_t now = mTimingCurrentTime(psg->timing);
++	struct PSGTail tail;
++	memset(&tail, 0, sizeof(tail));
++	tail.ch1 = psg->ch1;
++	tail.ch2 = psg->ch2;
++	tail.ch3 = psg->ch3;
++	tail.ch4 = psg->ch4;
++	tail.ch1.lastUpdate -= now;
++	tail.ch2.lastUpdate -= now;
++	tail.ch3.nextUpdate -= now;
++	tail.ch4.lastEvent -= now;
++	tail.frame = psg->frame;
++	tail.skipFrame = psg->skipFrame;
++	tail.playing[0] = psg->playingCh1;
++	tail.playing[1] = psg->playingCh2;
++	tail.playing[2] = psg->playingCh3;
++	tail.playing[3] = psg->playingCh4;
++	tail.size = sizeof(tail);
++	tail.magic = PSG_TAIL_MAGIC;
++	memcpy(at, &tail, sizeof(tail));
++}
++
++static void _loadPSGTail(const void* data, size_t size) {
++	if (!_psgTailSize() || size < sizeof(struct PSGTail)) {
++		return;
++	}
++	struct PSGTail tail;
++	memcpy(&tail, (const uint8_t*) data + size - sizeof(tail), sizeof(tail));
++	if (tail.magic != PSG_TAIL_MAGIC || tail.size != sizeof(tail)) {
++		return;
++	}
++	struct GBAudio* psg = &((struct GBA*) core->board)->audio.psg;
++	int32_t now = mTimingCurrentTime(psg->timing);
++	psg->ch1 = tail.ch1;
++	psg->ch2 = tail.ch2;
++	psg->ch3 = tail.ch3;
++	psg->ch4 = tail.ch4;
++	psg->ch1.lastUpdate += now;
++	psg->ch2.lastUpdate += now;
++	psg->ch3.nextUpdate += now;
++	psg->ch4.lastEvent += now;
++	psg->frame = tail.frame;
++	psg->skipFrame = tail.skipFrame;
++	psg->playingCh1 = tail.playing[0];
++	psg->playingCh2 = tail.playing[1];
++	psg->playingCh3 = tail.playing[2];
++	psg->playingCh4 = tail.playing[3];
++	*psg->nr52 &= ~0x000F;
++	*psg->nr52 |= psg->playingCh1 | (psg->playingCh2 << 1) | (psg->playingCh3 << 2) | (psg->playingCh4 << 3);
++}
++#else
++static size_t _psgTailSize(void) {
++	return 0;
++}
++#endif
++
+ static struct VFile* _saveState(void) {
+ #ifdef M_CORE_GBA
+ 	if (linkMode) {
+@@ -2897,7 +2980,7 @@
+ 	struct VFile* vfm = _saveState();
+ 	size_t size = vfm->size(vfm);
+ 	vfm->close(vfm);
+-	return size;
++	return size + _psgTailSize();
+ }
+ 
+ bool retro_serialize(void* data, size_t size) {
+@@ -2905,15 +2988,20 @@
+ 		_doDeferredSetup();
+ 	}
+ 	struct VFile* vfm = _saveState();
+-	if ((ssize_t) size > vfm->size(vfm)) {
+-		size = vfm->size(vfm);
+-	} else if ((ssize_t) size < vfm->size(vfm)) {
++	size_t tail = _psgTailSize();
++	ssize_t state = vfm->size(vfm);
++	if ((ssize_t) size < state + (ssize_t) tail) {
+ 		vfm->close(vfm);
+ 		return false;
+ 	}
+ 	vfm->seek(vfm, 0, SEEK_SET);
+-	vfm->read(vfm, data, size);
++	vfm->read(vfm, data, state);
+ 	vfm->close(vfm);
++#ifdef M_CORE_GBA
++	if (tail) {
++		_savePSGTail((uint8_t*) data + size - tail);
++	}
++#endif
+ 	return true;
+ }
+ 
+@@ -2929,6 +3017,11 @@
+ 	struct VFile* vfm = VFileFromConstMemory(data, size);
+ 	bool success = mCoreLoadStateNamed(core, vfm, SAVESTATE_SAVEDATA | SAVESTATE_RTC);
+ 	vfm->close(vfm);
++#ifdef M_CORE_GBA
++	if (success) {
++		_loadPSGTail(data, size);
++	}
++#endif
+ 	return success;
+ }
+ 

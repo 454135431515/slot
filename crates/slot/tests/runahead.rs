@@ -665,3 +665,79 @@ fn on_mgba_a_save_write_made_only_in_a_guessed_frame_never_reaches_save_ram() {
         present(&emu);
     }
 }
+
+/// Plays all four PSG channels: a held square on channel 2, a held 64-sample wave on channel 3,
+/// and every 32 frames a sweeping square on channel 1 and a fading noise on channel 4.
+fn psg_rom() -> Vec<u8> {
+    const CODE: [u32; 60] = [
+        0xe3a00301, 0xe3a02080, 0xe1c028b4, 0xe3a02002, 0xe1c028b2, 0xe3a02cff, 0xe3822077,
+        0xe1c028b0, 0xe3a02000, 0xe1c027b0, 0xe3e02000, 0xe5802090, 0xe5802094, 0xe3a02000,
+        0xe5802098, 0xe580209c, 0xe3a02040, 0xe1c027b0, 0xe3a0200f, 0xe3822c0f, 0xe1822802,
+        0xe5802090, 0xe5802094, 0xe5802098, 0xe580209c, 0xe3a020a0, 0xe1c027b0, 0xe3a02a02,
+        0xe1c027b2, 0xe3a02c86, 0xe38220d6, 0xe1c027b4, 0xe3a02022, 0xe1c026b0, 0xe3a02a0f,
+        0xe3822080, 0xe1c026b2, 0xe1c026b8, 0xe3a02c86, 0xe38220d6, 0xe1c026bc, 0xe3a02cf3,
+        0xe1c027b8, 0xe3a08000, 0xe1d040b6, 0xe35400a0, 0x1afffffc, 0xe318001f, 0x1a000005,
+        0xe3a02c83, 0xe38220e8, 0xe1c026b4, 0xe3a02902, 0xe3822031, 0xe1c027bc, 0xe2888001,
+        0xe1d040b6, 0xe35400a0, 0x0afffffc, 0xeaffffef,
+    ];
+    rom_running(&CODE)
+}
+
+/// The sound of each present, played plain or with run-ahead's steps at 1 frame: the real
+/// frame skipped, a save, the guessed frame drawn and heard, and a load back.
+fn psg_sound(dylib: &Path, rom: &Path, ahead: bool) -> Vec<Vec<i16>> {
+    let root = tempfile::tempdir().expect("a temporary root");
+    let mut core = LibretroCore::open_with(dylib, root.path(), root.path())
+        .expect("the vendored core would not open, is another one still running?");
+    apply_core_options(
+        &mut core,
+        Core::Mgba,
+        Platform::Gba,
+        "auto",
+        false,
+        false,
+        None,
+    );
+    core.load(rom).expect("the rom would not load");
+    let none = ButtonMask(0);
+    (0..300)
+        .map(|_| {
+            if !ahead {
+                core.run_frame(none);
+                return core.take_audio();
+            }
+            core.set_frame_skip(true);
+            core.run_frame(none);
+            let state = core.serialize().expect("mGBA would not save");
+            let _ = core.take_audio();
+            core.set_frame_skip(false);
+            core.run_frame(none);
+            let sound = core.take_audio();
+            core.unserialize(&state).expect("mGBA would not load");
+            sound
+        })
+        .collect()
+}
+
+#[test]
+fn on_mgba_run_ahead_leaves_every_psg_channel_sounding_as_it_would_have() {
+    let _g = common::core_lock();
+    let Some(dylib) = common::vendored_core() else {
+        eprintln!("no vendored mGBA core on this host, skipping");
+        return;
+    };
+    let rom = Path::new(env!("CARGO_TARGET_TMPDIR")).join("psg.gba");
+    std::fs::write(&rom, psg_rom()).expect("write rom");
+    let plain = psg_sound(&dylib, &rom, false);
+    let ahead = psg_sound(&dylib, &rom, true);
+    assert!(
+        plain.iter().flatten().any(|&s| s != 0),
+        "the rom made no sound, so this proves nothing"
+    );
+    for (p, (guessed, played)) in ahead.iter().zip(&plain[1..]).enumerate() {
+        assert!(
+            guessed == played,
+            "present {p}: the guessed frame's sound is not the sound of the frame it guessed"
+        );
+    }
+}
