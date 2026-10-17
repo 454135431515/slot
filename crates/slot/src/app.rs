@@ -60,6 +60,9 @@ const POWER_OFF_S: f32 = 0.16;
 
 const FOOTER_SLIDE_S: f32 = POWER_ON_S;
 
+const BLANK_WARM_S: f32 = 1.5;
+const BLANK_DIM: f32 = 0.1;
+
 const VOLUME_STEP: u8 = 5;
 
 const AUTOSAVE_MS: Millis = 60_000;
@@ -413,6 +416,7 @@ pub struct App {
     shelf_clock: slot_ui::Printed,
     hud: Hud,
     screen: f32,
+    blank_s: f32,
     lift: f32,
     eject_overlay: f32,
     panel: (u32, u32),
@@ -586,6 +590,7 @@ impl App {
             shelf_clock: slot_ui::Printed::default(),
             hud: Hud::new(),
             screen: 0.0,
+            blank_s: 0.0,
             lift: 1.0,
             eject_overlay: 0.0,
             panel: (0, 0),
@@ -2892,7 +2897,12 @@ impl App {
     }
 
     fn step_screen(&mut self, dt: f32) {
-        let lit = matches!(self.phase, Phase::Playing { .. } | Phase::Polaroids { .. });
+        self.blank_s = match self.blank_panel() {
+            Some(_) => self.blank_s + dt,
+            None => 0.0,
+        };
+        let lit = matches!(self.phase, Phase::Playing { .. } | Phase::Polaroids { .. })
+            || self.powering_up();
         let step = if lit {
             dt / POWER_ON_S
         } else {
@@ -2984,6 +2994,9 @@ impl App {
         if matches!(self.phase, Phase::Playing { .. }) && self.in_game_menu_shown().is_some() {
             return IN_GAME_MENU;
         }
+        if self.powering_up() {
+            return Layout::Framed;
+        }
         match &self.phase {
             Phase::Playing { .. } | Phase::Polaroids { .. } => Layout::Framed,
             Phase::Ejecting { .. } if self.overlay_slide() > 0.0 => Layout::Framed,
@@ -3020,9 +3033,32 @@ impl App {
             h: OUT_H as f32,
             colour: [0.0, 0.0, 0.0, 1.0],
         });
-        if self.game_ready && self.screen > 0.0 {
+        if self.panel_lit() && self.screen > 0.0 {
             out.push(Draw::Game);
         }
+    }
+
+    fn powering_up(&self) -> bool {
+        matches!(self.phase, Phase::Inserting { t, resumed: false, .. } if t >= INSERT_S)
+    }
+
+    pub fn blank_panel(&self) -> Option<[u8; 3]> {
+        let waiting = self.powering_up()
+            || (matches!(self.phase, Phase::Playing { .. }) && self.blank_s > 0.0);
+        if self.game_ready || !waiting {
+            return None;
+        }
+        let lit = match self.playing_platform() {
+            Platform::Gb => [0x9b, 0xa5, 0x82],
+            _ => [0xe6, 0xe4, 0xda],
+        };
+        let k = (self.blank_s / BLANK_WARM_S).min(1.0);
+        let level = BLANK_DIM + (1.0 - BLANK_DIM) * (1.0 - (1.0 - k) * (1.0 - k));
+        Some(lit.map(|c| (c as f32 * level) as u8))
+    }
+
+    fn panel_lit(&self) -> bool {
+        self.game_ready || self.blank_panel().is_some()
     }
 
     pub fn screen_power(&self) -> f32 {
@@ -3038,7 +3074,7 @@ impl App {
     }
 
     pub fn game_visible(&self) -> bool {
-        self.game_ready && self.screen > 0.0
+        self.panel_lit() && self.screen > 0.0
     }
 
     pub fn tick_ms(&mut self, now: Millis) {
@@ -3455,6 +3491,13 @@ impl App {
                 self.draw_menu_footer(out);
                 return;
             }
+            Phase::Inserting { .. } if self.powering_up() && self.framed_panel() => {
+                self.draw_powering(out)
+            }
+            Phase::Inserting { cart, .. } if self.powering_up() => {
+                self.draw_background(out);
+                self.chrome(cart, 0.0, out);
+            }
             Phase::Inserting { cart, resumed, .. } => {
                 if !resumed {
                     self.draw_background(out);
@@ -3770,13 +3813,14 @@ impl App {
             alert: self.alert_face.filter(|_| alpha > 0.0).map(|t| (t, alpha)),
             dim,
             screen: self.screen,
-            game: self.game_ready,
-            over: !matches!(
-                &self.phase,
-                Phase::Inserting { resumed: true, .. }
-                    | Phase::Playing { .. }
-                    | Phase::Ejecting { .. }
-            ),
+            game: self.panel_lit(),
+            over: !self.powering_up()
+                && !matches!(
+                    &self.phase,
+                    Phase::Inserting { resumed: true, .. }
+                        | Phase::Playing { .. }
+                        | Phase::Ejecting { .. }
+                ),
             behind: self.shelf().behind(stem),
             slot: self.slot_faces,
             canvas: self.canvas(),

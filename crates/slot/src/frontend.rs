@@ -534,7 +534,10 @@ impl Frontend {
         if self.draw_rebuild(compositor) {
             return;
         }
-        if let Some(frame) = self.session.frame() {
+        if let Some([r, g, b]) = self.session.app().blank_panel() {
+            let px = (slot_gfx::SRC_W * slot_gfx::SRC_H) as usize;
+            compositor.upload_game(&[b, g, r, 0xff].repeat(px));
+        } else if let Some(frame) = self.session.frame() {
             compositor.upload_game(&frame);
             crate::latency::taken();
         }
