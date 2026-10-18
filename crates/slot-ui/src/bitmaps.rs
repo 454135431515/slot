@@ -273,15 +273,17 @@ pub(crate) enum ButtonLegend {
     Right,
     Select,
     X,
+    Y,
 }
 
-const BUTTON_LEGEND_PNG: [&[u8]; 6] = [
+const BUTTON_LEGEND_PNG: [&[u8]; 7] = [
     include_bytes!("../../../assets/buttonlegend_round_a.png"),
     include_bytes!("../../../assets/buttonlegend_round_b.png"),
     include_bytes!("../../../assets/buttonlegend_dpad_left.png"),
     include_bytes!("../../../assets/buttonlegend_dpad_right.png"),
     include_bytes!("../../../assets/buttonlegend_long_select.png"),
     include_bytes!("../../../assets/buttonlegend_round_x.png"),
+    include_bytes!("../../../assets/buttonlegend_round_y.png"),
 ];
 
 pub(crate) fn button_legend(which: ButtonLegend) -> (&'static [u8], u32, u32) {

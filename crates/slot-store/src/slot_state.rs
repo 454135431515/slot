@@ -13,6 +13,8 @@ pub const UTC_OFFSET_MAX: i16 = 840;
 
 pub const FF_SPEEDS: [u8; 4] = [2, 3, 4, 6];
 
+pub const LID_OFF_MIN: [u8; 6] = [1, 3, 5, 10, 15, 30];
+
 pub const FF_SPEED_DEFAULT: u8 = 6;
 
 pub const RECENTS_MAX: usize = 10;
@@ -222,6 +224,7 @@ pub struct SlotState {
     pub show_recents: bool,
     pub show_titles: bool,
     pub left_stick_dpad: bool,
+    pub lid_off_min: Option<u8>,
     pub bezel_gba: BezelPick,
     pub bezel_gb: BezelPick,
     pub bezel_gbc: BezelPick,
@@ -344,6 +347,7 @@ impl Default for SlotState {
             show_recents: false,
             show_titles: false,
             left_stick_dpad: true,
+            lid_off_min: None,
             bezel_gba: BezelPick::Ags102,
             bezel_gb: BezelPick::Ags102,
             bezel_gbc: BezelPick::Ags102,
@@ -438,6 +442,9 @@ pub fn write_slot_state(root: &Path, s: &SlotState) -> std::io::Result<()> {
     text.push_str(&format!("show_recents={}\n", s.show_recents as u8));
     text.push_str(&format!("show_titles={}\n", s.show_titles as u8));
     text.push_str(&format!("left_stick_dpad={}\n", s.left_stick_dpad as u8));
+    if let Some(min) = s.lid_off_min {
+        text.push_str(&format!("lid_off_min={min}\n"));
+    }
     text.push_str(&format!("bezel_gba={}\n", s.bezel_gba.key()));
     text.push_str(&format!("bezel_gb={}\n", s.bezel_gb.key()));
     text.push_str(&format!("bezel_gbc={}\n", s.bezel_gbc.key()));
@@ -487,6 +494,7 @@ fn parse(text: &str) -> Option<SlotState> {
     let mut show_recents = None;
     let mut show_titles = None;
     let mut left_stick_dpad = None;
+    let mut lid_off_min = None;
     let mut bezel_gba = None;
     let mut bezel_gb = None;
     let mut bezel_gbc = None;
@@ -526,6 +534,7 @@ fn parse(text: &str) -> Option<SlotState> {
             "show_recents" => show_recents = flag(value),
             "show_titles" => show_titles = flag(value),
             "left_stick_dpad" => left_stick_dpad = flag(value),
+            "lid_off_min" => lid_off_min = value.parse().ok().filter(|m| LID_OFF_MIN.contains(m)),
             "bezel_gba" => bezel_gba = Some(BezelPick::parse(value)),
             "bezel_gb" => bezel_gb = Some(BezelPick::parse(value)),
             "bezel_gbc" => bezel_gbc = Some(BezelPick::parse(value)),
@@ -576,6 +585,7 @@ fn parse(text: &str) -> Option<SlotState> {
         show_recents: show_recents.unwrap_or(fallback.show_recents),
         show_titles: show_titles.unwrap_or(fallback.show_titles),
         left_stick_dpad: left_stick_dpad.unwrap_or(fallback.left_stick_dpad),
+        lid_off_min,
         bezel_gba: bezel_gba.unwrap_or(fallback.bezel_gba),
         bezel_gb: bezel_gb.unwrap_or(fallback.bezel_gb),
         bezel_gbc: bezel_gbc.unwrap_or(fallback.bezel_gbc),

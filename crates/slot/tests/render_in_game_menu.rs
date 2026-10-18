@@ -146,7 +146,7 @@ fn the_in_game_menu_darkens_the_game_and_screen_leaves_it_bare() {
 }
 
 #[test]
-fn the_controls_and_save_pages_render() {
+fn the_controls_page_renders() {
     let Ok(surface) = HeadlessSurface::new() else {
         return;
     };
@@ -188,10 +188,4 @@ fn the_controls_and_save_pages_render() {
     tap(&mut f, &mut input, Btn::Up);
     run_for(&mut f, &mut input, 0.2);
     composed(&mut f, &mut c, "controls-bound");
-    tap(&mut f, &mut input, Btn::B);
-    tap(&mut f, &mut input, Btn::Down);
-    tap(&mut f, &mut input, Btn::A);
-    run_for(&mut f, &mut input, 0.3);
-    assert_eq!(f.app().in_game_menu(), Some(QuickRow::SaveConsole));
-    composed(&mut f, &mut c, "save");
 }

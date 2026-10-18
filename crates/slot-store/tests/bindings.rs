@@ -1,8 +1,7 @@
 use slot_store::{
-    read_carousel, read_controls, read_shortcuts, restore_controls, write_carousel,
-    write_console_controls, write_game_controls, write_shortcuts, Binding, CarouselAction,
-    CarouselKeys, Controls, Device, GameButton, Modifier, Platform, Restored, Shortcut,
-    ShortcutKeys,
+    read_carousel, read_controls, read_shortcuts, write_carousel, write_controls, write_shortcuts,
+    Binding, CarouselAction, CarouselKeys, Controls, Device, GameButton, Modifier, Platform,
+    Shortcut, ShortcutKeys,
 };
 
 fn card() -> tempfile::TempDir {
@@ -73,64 +72,28 @@ fn a_binding_reads_the_way_minui_prints_it() {
 }
 
 #[test]
-fn a_console_file_is_read_for_every_game_on_that_console() {
+fn the_buttons_are_one_set_written_and_read_back() {
     let d = card();
+    assert_eq!(read_controls(d.path()), Controls::default());
     let mut c = Controls::default();
     c.set_game(GameButton::A, plain(Device::B));
     c.set_game(GameButton::Start, None);
-    write_console_controls(d.path(), Platform::Gba, &c).unwrap();
-    assert_eq!(read_controls(d.path(), Platform::Gba, "Emerald"), c);
-    assert_eq!(
-        read_controls(d.path(), Platform::Gb, "Tetris"),
-        Controls::default()
-    );
-}
-
-#[test]
-fn a_game_file_wins_over_its_console_file() {
-    let d = card();
-    let mut console = Controls::default();
-    console.set_game(GameButton::A, plain(Device::B));
-    write_console_controls(d.path(), Platform::Gba, &console).unwrap();
-    let mut game = Controls::default();
-    game.set_game(GameButton::A, with(Modifier::Menu, Device::X));
-    write_game_controls(d.path(), Platform::Gba, "Emerald", &game).unwrap();
-    assert_eq!(read_controls(d.path(), Platform::Gba, "Emerald"), game);
-    assert_eq!(read_controls(d.path(), Platform::Gba, "Fusion"), console);
-}
-
-#[test]
-fn restoring_drops_the_game_file_first_then_the_console_file() {
-    let d = card();
-    let mut console = Controls::default();
-    console.set_game(GameButton::A, plain(Device::B));
-    write_console_controls(d.path(), Platform::Gba, &console).unwrap();
-    write_game_controls(d.path(), Platform::Gba, "Emerald", &Controls::default()).unwrap();
-    assert_eq!(
-        restore_controls(d.path(), Platform::Gba, "Emerald"),
-        Restored::Console
-    );
-    assert_eq!(read_controls(d.path(), Platform::Gba, "Emerald"), console);
-    assert_eq!(
-        restore_controls(d.path(), Platform::Gba, "Emerald"),
-        Restored::Defaults
-    );
-    assert_eq!(
-        read_controls(d.path(), Platform::Gba, "Emerald"),
-        Controls::default()
-    );
+    c.set_game(GameButton::L, with(Modifier::Menu, Device::X));
+    write_controls(d.path(), &c).unwrap();
+    assert_eq!(read_controls(d.path()), c);
+    assert!(d.path().join("Config/controls.txt").is_file());
 }
 
 #[test]
 fn a_hand_written_file_reads_spaces_any_case_and_skips_what_it_cannot() {
     let d = card();
-    std::fs::create_dir_all(d.path().join("Config/Controls")).unwrap();
+    std::fs::create_dir_all(d.path().join("Config")).unwrap();
     std::fs::write(
-        d.path().join("Config/Controls/GBA.txt"),
+        d.path().join("Config/controls.txt"),
         "A = Menu+X\nstart=none\nb=nonsense\nnot_a_key=a\n",
     )
     .unwrap();
-    let c = read_controls(d.path(), Platform::Gba, "Emerald");
+    let c = read_controls(d.path());
     assert_eq!(c.game(GameButton::A), with(Modifier::Menu, Device::X));
     assert_eq!(c.game(GameButton::Start), None);
     assert_eq!(c.game(GameButton::B), plain(Device::B));

@@ -10,7 +10,7 @@ use slot_ui::{
     badge_face, bezel_face, cart_shadow, chip_face, chip_shadow_face, core_button_legends,
     date_time_text, default_game_bezel_face, footer_ink, game_bezel_face, gb_cart_shadow, hhmm,
     hint_face, icon_face, link_button_legends, menu_detail_face, menu_face, photo_face,
-    quick_caret_face, quick_description_face, quick_label_face, quick_legend_faces,
+    prompt_legends, quick_caret_face, quick_description_face, quick_label_face, quick_legend_faces,
     quick_pointer_face, quick_value_face, rebuild_count_face, rebuild_title_face, repair_legends,
     set_clock_hint_face, slot_back, slot_back_light, slot_front, slot_front_light, socket_face,
     sticker_face, title_face, toast_face, wallpaper_face, word_ink, CartFace, GbShell, Icon,
@@ -381,6 +381,7 @@ impl Frontend {
         let mut up = |f: UndoFace| (compositor.create_texture(f.w, f.h, &f.rgba), f.w, f.h);
         let lines = faces.shutdown.into_iter().map(&mut up).collect();
         let repair = faces.repair.into_iter().map(&mut up).collect();
+        let reset = faces.reset.into_iter().map(&mut up).collect();
         let labels = faces
             .quick_labels
             .into_iter()
@@ -394,7 +395,7 @@ impl Frontend {
             .collect();
         let carets = faces.quick_carets.map(&mut up);
         let descriptions = faces.descriptions.map(&mut up);
-        let mut pack_legend = |faces: [UndoFace; 7]| {
+        let mut pack_legend = |faces: [UndoFace; 8]| {
             faces.map(|f| {
                 let (tex, w, _) = up(f);
                 (tex, w)
@@ -433,6 +434,7 @@ impl Frontend {
         app.set_link_badge_faces(link_badges);
         app.set_shutdown_faces(lines);
         app.set_repair_faces(repair);
+        app.set_reset_faces(reset);
         app.set_quick_menu_faces(QuickMenuFaces {
             labels,
             pointer,
@@ -773,8 +775,8 @@ struct UiFaces {
     quick_pointer: UndoFace,
     quick_values: Vec<[UndoFace; 2]>,
     quick_carets: [UndoFace; 2],
-    quick_legend: [UndoFace; 7],
-    quick_legend_light: [UndoFace; 7],
+    quick_legend: [UndoFace; 8],
+    quick_legend_light: [UndoFace; 8],
     descriptions: [UndoFace; 2],
     sockets: Vec<CartFace>,
     chips: Vec<CartFace>,
@@ -789,6 +791,7 @@ struct UiFaces {
     link_fails: Vec<UndoFace>,
     toasts: Vec<CartFace>,
     repair: Vec<UndoFace>,
+    reset: Vec<UndoFace>,
 }
 
 impl UiFaces {
@@ -858,6 +861,19 @@ impl UiFaces {
                     menu_detail_face("slot restarts when it is done."),
                     not_now,
                     repair,
+                ]
+            },
+            reset: {
+                let [cancel, reset] = prompt_legends(footer_ink(false), "Cancel", "Reset");
+                vec![
+                    menu_face("Reset all controls?"),
+                    menu_detail_face("Every button goes back to its default."),
+                    menu_face("Reset all shortcuts?"),
+                    menu_detail_face("Every shortcut goes back to its default."),
+                    menu_face("Reset all shelf keys?"),
+                    menu_detail_face("Every shelf key goes back to its default."),
+                    cancel,
+                    reset,
                 ]
             },
         }

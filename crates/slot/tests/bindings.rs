@@ -7,8 +7,8 @@ use slot::app::{App, Phase};
 use slot::session::Session;
 use slot_input::{Action, Btn, Millis, RawEvent};
 use slot_store::{
-    read_carousel, read_controls, read_shortcuts, write_carousel, Binding, CarouselAction,
-    CarouselKeys, Controls, Device, GameButton, Modifier, Platform, Shortcut,
+    read_carousel, read_controls, read_shortcuts, write_carousel, write_shortcuts, Binding,
+    CarouselAction, CarouselKeys, Controls, Device, GameButton, Modifier, Shortcut, ShortcutKeys,
 };
 use slot_ui::QuickRow;
 use tempfile::TempDir;
@@ -100,53 +100,119 @@ fn x_clears_a_row_and_left_and_right_do_nothing() {
 }
 
 #[test]
-fn a_change_lasts_until_the_game_closes_unless_it_is_saved() {
+fn y_asks_before_resetting_the_buttons_and_b_keeps_them() {
     let (d, mut a) = playing("Emerald");
     in_game_at(&mut a, QuickRow::GameA);
     bind(&mut a, &[RawEvent::Down(Btn::X)]);
-    assert_eq!(
-        read_controls(d.path(), Platform::Gba, "Emerald"),
-        Controls::default()
-    );
-    let b = app_playing_in(d.path(), "Emerald");
-    assert_eq!(b.controls(), Controls::default());
-}
-
-#[test]
-fn save_for_console_reaches_every_game_on_the_console() {
-    let (d, mut a) = playing("Emerald");
     in_game_at(&mut a, QuickRow::GameA);
-    bind(&mut a, &[RawEvent::Down(Btn::X)]);
-    in_game_at(&mut a, QuickRow::SaveConsole);
-    press(&mut a, Btn::A);
-    let other = app_playing_in(d.path(), "Fusion");
+    press(&mut a, Btn::Y);
+    assert!(a.reset_prompt());
+    press(&mut a, Btn::Down);
+    press(&mut a, Btn::B);
+    assert!(!a.reset_prompt());
+    assert_eq!(a.in_game_menu(), Some(QuickRow::GameA));
+    assert_eq!(a.controls().game(GameButton::A), Binding::plain(Device::X));
     assert_eq!(
-        other.controls().game(GameButton::A),
+        read_controls(d.path()).game(GameButton::A),
         Binding::plain(Device::X)
     );
 }
 
 #[test]
-fn save_for_game_stays_with_that_game_and_restore_takes_it_back() {
+fn y_does_nothing_while_the_buttons_are_the_defaults() {
+    let (_d, mut a) = playing("Emerald");
+    in_game_at(&mut a, QuickRow::GameA);
+    press(&mut a, Btn::Y);
+    assert!(!a.reset_prompt());
+    assert_eq!(a.in_game_menu(), Some(QuickRow::GameA));
+}
+
+#[test]
+fn a_on_the_reset_prompt_resets_every_button_and_nothing_else() {
     let (d, mut a) = playing("Emerald");
     in_game_at(&mut a, QuickRow::GameA);
     bind(&mut a, &[RawEvent::Down(Btn::X)]);
-    in_game_at(&mut a, QuickRow::SaveGame);
+    in_game_at(&mut a, QuickRow::GameR);
+    press(&mut a, Btn::X);
+    let mut keys = ShortcutKeys::default();
+    keys.set(Shortcut::SaveState, None);
+    write_shortcuts(d.path(), &keys).expect("write shortcuts");
+    in_game_at(&mut a, QuickRow::GameA);
+    press(&mut a, Btn::Y);
     press(&mut a, Btn::A);
-    assert_eq!(
-        read_controls(d.path(), Platform::Gba, "Emerald").game(GameButton::A),
-        Binding::plain(Device::X)
-    );
-    assert_eq!(
-        read_controls(d.path(), Platform::Gba, "Fusion"),
-        Controls::default()
-    );
-    in_game_at(&mut a, QuickRow::SaveRestore);
-    press(&mut a, Btn::A);
+    assert!(!a.reset_prompt());
+    assert_eq!(a.in_game_menu(), Some(QuickRow::GameA));
     assert_eq!(a.controls(), Controls::default());
+    assert_eq!(read_controls(d.path()), Controls::default());
+    assert_eq!(read_shortcuts(d.path()), keys);
+}
+
+#[test]
+fn reset_all_on_the_shortcut_and_shelf_pages_resets_only_that_page() {
+    let d = shelf_card();
+    let (mut s, mut now) = on_shelf(d.path());
+    tap(&mut s, &mut now, Btn::Menu);
+    for _ in 0..QuickRow::Controls.position(&[]) {
+        tap(&mut s, &mut now, Btn::Down);
+    }
+    tap(&mut s, &mut now, Btn::A);
+    tap(&mut s, &mut now, Btn::A);
+    assert_eq!(s.app().quick_menu(), Some(QuickRow::ShelfPrev));
+    tap(&mut s, &mut now, Btn::X);
+    tap(&mut s, &mut now, Btn::B);
+    tap(&mut s, &mut now, Btn::Down);
+    tap(&mut s, &mut now, Btn::A);
+    assert_eq!(s.app().quick_menu(), Some(QuickRow::ScSave));
+    tap(&mut s, &mut now, Btn::X);
+    tap(&mut s, &mut now, Btn::Y);
+    assert!(s.app().reset_prompt());
+    tap(&mut s, &mut now, Btn::A);
+    assert!(!s.app().reset_prompt());
+    assert_eq!(read_shortcuts(d.path()), ShortcutKeys::default());
     assert_eq!(
-        read_controls(d.path(), Platform::Gba, "Emerald"),
-        Controls::default()
+        read_carousel(d.path()).get(CarouselAction::PreviousShelf),
+        None
+    );
+    tap(&mut s, &mut now, Btn::B);
+    tap(&mut s, &mut now, Btn::Up);
+    tap(&mut s, &mut now, Btn::A);
+    assert_eq!(s.app().quick_menu(), Some(QuickRow::ShelfPrev));
+    tap(&mut s, &mut now, Btn::Y);
+    tap(&mut s, &mut now, Btn::A);
+    assert_eq!(read_carousel(d.path()), CarouselKeys::default());
+    assert_eq!(s.app().carousel(), CarouselKeys::default());
+}
+
+#[test]
+fn a_change_in_game_is_saved_at_once_for_every_game() {
+    let (d, mut a) = playing("Emerald");
+    in_game_at(&mut a, QuickRow::GameA);
+    bind(&mut a, &[RawEvent::Down(Btn::X)]);
+    assert_eq!(
+        read_controls(d.path()).game(GameButton::A),
+        Binding::plain(Device::X)
+    );
+    write_gb_cart(&d, "Tetris", "TETRIS");
+    for stem in ["Fusion", "Tetris"] {
+        assert_eq!(
+            app_playing_in(d.path(), stem)
+                .controls()
+                .game(GameButton::A),
+            Binding::plain(Device::X),
+            "{stem}"
+        );
+    }
+}
+
+#[test]
+fn the_in_game_settings_have_no_save_changes_page() {
+    assert_eq!(
+        QuickRow::SETTINGS,
+        [
+            QuickRow::PlayScreen,
+            QuickRow::PlayGameplay,
+            QuickRow::PlayControls
+        ]
     );
 }
 
@@ -196,17 +262,16 @@ fn on_shelf(root: &Path) -> (Session, Millis) {
 }
 
 #[test]
-fn the_carousel_page_rebinds_shelf_switching_and_saves_at_once() {
+fn the_controls_shelf_page_rebinds_shelf_switching_and_saves_at_once() {
     let d = shelf_card();
     let (mut s, mut now) = on_shelf(d.path());
     tap(&mut s, &mut now, Btn::Menu);
-    for _ in 0..QuickRow::Carousel.position(&[]) {
+    for _ in 0..QuickRow::Controls.position(&[]) {
         tap(&mut s, &mut now, Btn::Down);
     }
     tap(&mut s, &mut now, Btn::A);
-    assert_eq!(s.app().quick_menu(), Some(QuickRow::Recents));
-    tap(&mut s, &mut now, Btn::Down);
-    tap(&mut s, &mut now, Btn::Down);
+    assert_eq!(s.app().quick_menu(), Some(QuickRow::ControlsShelf));
+    tap(&mut s, &mut now, Btn::A);
     assert_eq!(s.app().quick_menu(), Some(QuickRow::ShelfPrev));
     tap(&mut s, &mut now, Btn::A);
     assert!(s.app().capturing());
@@ -218,6 +283,9 @@ fn the_carousel_page_rebinds_shelf_switching_and_saves_at_once() {
     );
     assert_eq!(s.app().quick_menu(), Some(QuickRow::ShelfNext));
     tap(&mut s, &mut now, Btn::B);
+    assert_eq!(s.app().quick_menu(), Some(QuickRow::ControlsShelf));
+    tap(&mut s, &mut now, Btn::B);
+    assert_eq!(s.app().quick_menu(), Some(QuickRow::Controls));
     tap(&mut s, &mut now, Btn::B);
     assert!(matches!(s.app().phase(), Phase::Shelf));
     let before = s.app().shelf_platform_name();
@@ -236,7 +304,7 @@ fn the_carousel_page_rebinds_shelf_switching_and_saves_at_once() {
 }
 
 #[test]
-fn a_menu_chord_on_the_carousel_switches_shelves_without_opening_the_menu() {
+fn a_menu_chord_on_the_shelf_switches_shelves_without_opening_the_menu() {
     let d = shelf_card();
     let mut keys = CarouselKeys::default();
     keys.set(
@@ -271,9 +339,12 @@ fn shortcuts_are_set_from_the_main_menu_and_saved_for_every_game_at_once() {
     let d = shelf_card();
     let (mut s, mut now) = on_shelf(d.path());
     tap(&mut s, &mut now, Btn::Menu);
-    for _ in 0..QuickRow::Shortcuts.position(&[]) {
+    for _ in 0..QuickRow::Controls.position(&[]) {
         tap(&mut s, &mut now, Btn::Down);
     }
+    tap(&mut s, &mut now, Btn::A);
+    tap(&mut s, &mut now, Btn::Down);
+    assert_eq!(s.app().quick_menu(), Some(QuickRow::Shortcuts));
     tap(&mut s, &mut now, Btn::A);
     assert_eq!(s.app().quick_menu(), Some(QuickRow::ScSave));
     tap(&mut s, &mut now, Btn::A);
@@ -305,5 +376,42 @@ fn shortcuts_are_set_from_the_main_menu_and_saved_for_every_game_at_once() {
 #[test]
 fn the_in_game_settings_have_no_shortcuts_page() {
     assert!(!QuickRow::SETTINGS.contains(&QuickRow::Shortcuts));
-    assert!(QuickRow::MAIN.contains(&QuickRow::Shortcuts));
+    assert!(QuickRow::CONTROL_PAGES.contains(&QuickRow::Shortcuts));
+}
+
+#[test]
+fn in_game_buttons_are_set_from_the_main_menu_and_reach_a_game() {
+    let d = shelf_card();
+    let (mut s, mut now) = on_shelf(d.path());
+    tap(&mut s, &mut now, Btn::Menu);
+    for _ in 0..QuickRow::Controls.position(&[]) {
+        tap(&mut s, &mut now, Btn::Down);
+    }
+    tap(&mut s, &mut now, Btn::A);
+    tap(&mut s, &mut now, Btn::Up);
+    assert_eq!(s.app().quick_menu(), Some(QuickRow::ControlsInGame));
+    tap(&mut s, &mut now, Btn::A);
+    assert_eq!(s.app().quick_menu(), Some(QuickRow::GameUp));
+    assert_eq!(
+        QuickRow::GameUp.shown(&s.app().hidden_rows()),
+        QuickRow::CONTROLS
+    );
+    for _ in 0..QuickRow::GameA.position(&[]) {
+        tap(&mut s, &mut now, Btn::Down);
+    }
+    tap(&mut s, &mut now, Btn::A);
+    tap(&mut s, &mut now, Btn::Y);
+    assert!(!s.app().capturing());
+    assert_eq!(
+        read_controls(d.path()).game(GameButton::A),
+        Binding::plain(Device::Y)
+    );
+    tap(&mut s, &mut now, Btn::B);
+    assert_eq!(s.app().quick_menu(), Some(QuickRow::ControlsInGame));
+    assert_eq!(
+        app_playing_in(d.path(), "Tetris")
+            .controls()
+            .game(GameButton::A),
+        Binding::plain(Device::Y)
+    );
 }

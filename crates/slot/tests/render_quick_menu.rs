@@ -9,7 +9,7 @@ use slot::frontend::Frontend;
 use slot_gfx::{Compositor, HeadlessSurface, OUT_H, OUT_W};
 use slot_input::{Btn, InputSource, Millis, RawEvent};
 use slot_power::SimPlatform;
-use slot_ui::{quick_row_top, QuickRow};
+use slot_ui::{quick_row_top, quick_row_top_at, QuickRow, QUICK_VISIBLE};
 
 struct Script(VecDeque<Vec<RawEvent>>);
 
@@ -189,10 +189,14 @@ fn the_quick_menu_renders_full_screen() {
         tap(&mut f, &mut input, Btn::Up);
     }
     tap(&mut f, &mut input, Btn::A);
-    let px = composed(&mut f, &mut c, "general-page");
+    let px = composed(&mut f, &mut c, "shelf-page");
     let hidden = &f.app().hidden_rows();
-    for row in QuickRow::Wallpaper.shown(hidden) {
-        let top = quick_row_top(row, hidden) as usize;
+    for row in QuickRow::Theme
+        .shown(hidden)
+        .into_iter()
+        .take(QUICK_VISIBLE)
+    {
+        let top = quick_row_top_at(row, QuickRow::Theme, hidden) as usize;
         let first = *inked(&px, 56..360, top)
             .first()
             .unwrap_or_else(|| panic!("{row:?} has no label"));
@@ -342,7 +346,7 @@ fn the_about_label_is_on_the_tinted_wallpaper() {
 }
 
 #[test]
-fn the_carousel_page_renders() {
+fn the_general_page_renders() {
     let Ok(surface) = HeadlessSurface::new() else {
         return;
     };
@@ -355,17 +359,65 @@ fn the_carousel_page_renders() {
     f.upload_faces(&mut c);
     let mut input = Script(VecDeque::new());
     tap(&mut f, &mut input, Btn::Menu);
-    for _ in 0..QuickRow::Carousel.position(&[]) {
+    for _ in 0..QuickRow::General.position(&[]) {
         tap(&mut f, &mut input, Btn::Down);
     }
     composed(&mut f, &mut c, "main");
     tap(&mut f, &mut input, Btn::A);
-    assert_eq!(f.app().quick_menu(), Some(QuickRow::Recents));
-    composed(&mut f, &mut c, "carousel");
-    tap(&mut f, &mut input, Btn::Down);
-    tap(&mut f, &mut input, Btn::Down);
+    assert_eq!(f.app().quick_menu(), Some(QuickRow::Theme));
+    composed(&mut f, &mut c, "general");
+    for _ in 0..QuickRow::DateTime.position(&f.app().hidden_rows()) {
+        tap(&mut f, &mut input, Btn::Down);
+    }
+    assert_eq!(f.app().quick_menu(), Some(QuickRow::DateTime));
+    composed(&mut f, &mut c, "general-bottom");
+}
+
+#[test]
+fn the_controls_pages_render() {
+    let Ok(surface) = HeadlessSurface::new() else {
+        return;
+    };
+    let Ok(mut c) = Compositor::new(&surface) else {
+        return;
+    };
+    let d = tmp_root_with_carts(&["Emerald", "Fusion"]);
+    clocked(d.path());
+    let mut f = Frontend::boot(Box::new(SimPlatform::at(d.path().to_path_buf())));
+    f.upload_faces(&mut c);
+    let mut input = Script(VecDeque::new());
+    tap(&mut f, &mut input, Btn::Menu);
+    for _ in 0..QuickRow::Controls.position(&[]) {
+        tap(&mut f, &mut input, Btn::Down);
+    }
+    tap(&mut f, &mut input, Btn::A);
+    assert_eq!(f.app().quick_menu(), Some(QuickRow::ControlsShelf));
+    composed(&mut f, &mut c, "controls");
+    tap(&mut f, &mut input, Btn::A);
     assert_eq!(f.app().quick_menu(), Some(QuickRow::ShelfPrev));
-    composed(&mut f, &mut c, "carousel-keys");
+    composed(&mut f, &mut c, "controls-shelf");
+    tap(&mut f, &mut input, Btn::B);
+    tap(&mut f, &mut input, Btn::Up);
+    tap(&mut f, &mut input, Btn::A);
+    assert_eq!(f.app().quick_menu(), Some(QuickRow::GameUp));
+    composed(&mut f, &mut c, "controls-in-game");
+    tap(&mut f, &mut input, Btn::Y);
+    assert!(!f.app().reset_prompt());
+    tap(&mut f, &mut input, Btn::X);
+    composed(&mut f, &mut c, "controls-in-game-changed");
+    tap(&mut f, &mut input, Btn::Y);
+    assert!(f.app().reset_prompt());
+    composed(&mut f, &mut c, "controls-reset");
+    tap(&mut f, &mut input, Btn::B);
+    tap(&mut f, &mut input, Btn::B);
+    tap(&mut f, &mut input, Btn::Up);
+    tap(&mut f, &mut input, Btn::A);
+    assert_eq!(f.app().quick_menu(), Some(QuickRow::ScSave));
+    composed(&mut f, &mut c, "controls-shortcuts");
+    tap(&mut f, &mut input, Btn::X);
+    tap(&mut f, &mut input, Btn::Y);
+    composed(&mut f, &mut c, "controls-shortcuts-reset");
+    tap(&mut f, &mut input, Btn::B);
 }
 
 #[test]
@@ -382,9 +434,11 @@ fn the_shortcuts_page_renders() {
     f.upload_faces(&mut c);
     let mut input = Script(VecDeque::new());
     tap(&mut f, &mut input, Btn::Menu);
-    for _ in 0..QuickRow::Shortcuts.position(&[]) {
+    for _ in 0..QuickRow::Controls.position(&[]) {
         tap(&mut f, &mut input, Btn::Down);
     }
+    tap(&mut f, &mut input, Btn::A);
+    tap(&mut f, &mut input, Btn::Down);
     tap(&mut f, &mut input, Btn::A);
     assert_eq!(f.app().quick_menu(), Some(QuickRow::ScSave));
     composed(&mut f, &mut c, "shortcuts");

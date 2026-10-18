@@ -23,10 +23,6 @@ pub enum Toast {
     ShaderDot,
     ShaderSimpletex,
     CardUnwritable,
-    SavedForConsole,
-    SavedForGame,
-    RestoredConsole,
-    RestoredDefaults,
     CardRepair,
     CardRepaired,
     CardRepairFailed,
@@ -34,7 +30,7 @@ pub enum Toast {
 }
 
 impl Toast {
-    const FIXED: [Toast; 22] = [
+    const FIXED: [Toast; 18] = [
         Toast::StateSaved,
         Toast::StateLoaded,
         Toast::NeedsGpsp,
@@ -50,10 +46,6 @@ impl Toast {
         Toast::ShaderDot,
         Toast::ShaderSimpletex,
         Toast::CardUnwritable,
-        Toast::SavedForConsole,
-        Toast::SavedForGame,
-        Toast::RestoredConsole,
-        Toast::RestoredDefaults,
         Toast::CardRepair,
         Toast::CardRepaired,
         Toast::CardRepairFailed,
@@ -109,10 +101,6 @@ impl Toast {
             Toast::ShaderDot => "Shader: Dot",
             Toast::ShaderSimpletex => "Shader: Simpletex",
             Toast::CardUnwritable => "Can't write to SD card",
-            Toast::SavedForConsole => "Saved for Console",
-            Toast::SavedForGame => "Saved for Game",
-            Toast::RestoredConsole => "Restored Console",
-            Toast::RestoredDefaults => "Restored Defaults",
             Toast::CardRepair => "Can't write to SD card",
             Toast::CardRepaired => "SD card repaired",
             Toast::CardRepairFailed => "Card repair failed",

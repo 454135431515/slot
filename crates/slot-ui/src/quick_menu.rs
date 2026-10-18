@@ -27,7 +27,6 @@ pub enum QuickRow {
     GbPalettes,
     Theme,
     Wallpaper,
-    General,
     Recents,
     ShowTitles,
     WallpaperTint,
@@ -49,13 +48,12 @@ pub enum QuickRow {
     GbaBezel,
     ScreenGbc,
     ScreenGb,
-    Carousel,
+    General,
     ShelfPrev,
     ShelfNext,
     ShelfFavorite,
     PlayControls,
     Shortcuts,
-    PlaySave,
     GameUp,
     GameDown,
     GameLeft,
@@ -79,14 +77,15 @@ pub enum QuickRow {
     ScShaderBack,
     ScFastForward,
     ScRewind,
-    SaveConsole,
-    SaveGame,
-    SaveRestore,
+    LidOff,
+    Controls,
+    ControlsShelf,
+    ControlsInGame,
     LeftStick,
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 73] = [
+    pub const ALL: [QuickRow; 72] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Screen,
@@ -104,7 +103,6 @@ impl QuickRow {
         QuickRow::GbPalettes,
         QuickRow::Theme,
         QuickRow::Wallpaper,
-        QuickRow::General,
         QuickRow::Recents,
         QuickRow::ShowTitles,
         QuickRow::WallpaperTint,
@@ -126,13 +124,12 @@ impl QuickRow {
         QuickRow::GbaBezel,
         QuickRow::ScreenGbc,
         QuickRow::ScreenGb,
-        QuickRow::Carousel,
+        QuickRow::General,
         QuickRow::ShelfPrev,
         QuickRow::ShelfNext,
         QuickRow::ShelfFavorite,
         QuickRow::PlayControls,
         QuickRow::Shortcuts,
-        QuickRow::PlaySave,
         QuickRow::GameUp,
         QuickRow::GameDown,
         QuickRow::GameLeft,
@@ -156,24 +153,38 @@ impl QuickRow {
         QuickRow::ScShaderBack,
         QuickRow::ScFastForward,
         QuickRow::ScRewind,
-        QuickRow::SaveConsole,
-        QuickRow::SaveGame,
-        QuickRow::SaveRestore,
+        QuickRow::LidOff,
+        QuickRow::Controls,
+        QuickRow::ControlsShelf,
+        QuickRow::ControlsInGame,
         QuickRow::LeftStick,
     ];
 
-    pub const MAIN: [QuickRow; 6] = [
+    pub const MAIN: [QuickRow; 5] = [
         QuickRow::General,
         QuickRow::Screen,
         QuickRow::Game,
-        QuickRow::Shortcuts,
-        QuickRow::Carousel,
+        QuickRow::Controls,
         QuickRow::About,
     ];
 
-    pub const CAROUSEL: [QuickRow; 5] = [
+    pub const GENERAL: [QuickRow; 7] = [
+        QuickRow::Theme,
+        QuickRow::Wallpaper,
+        QuickRow::WallpaperTint,
         QuickRow::Recents,
         QuickRow::ShowTitles,
+        QuickRow::LidOff,
+        QuickRow::DateTime,
+    ];
+
+    pub const CONTROL_PAGES: [QuickRow; 3] = [
+        QuickRow::ControlsShelf,
+        QuickRow::Shortcuts,
+        QuickRow::ControlsInGame,
+    ];
+
+    pub const SHELF_KEYS: [QuickRow; 3] = [
         QuickRow::ShelfPrev,
         QuickRow::ShelfNext,
         QuickRow::ShelfFavorite,
@@ -206,19 +217,6 @@ impl QuickRow {
         QuickRow::ScShaderBack,
         QuickRow::ScFastForward,
         QuickRow::ScRewind,
-    ];
-
-    pub const SAVE: [QuickRow; 3] = [
-        QuickRow::SaveConsole,
-        QuickRow::SaveGame,
-        QuickRow::SaveRestore,
-    ];
-
-    pub const GENERAL: [QuickRow; 4] = [
-        QuickRow::Wallpaper,
-        QuickRow::WallpaperTint,
-        QuickRow::Theme,
-        QuickRow::DateTime,
     ];
 
     pub const SCREEN: [QuickRow; 3] =
@@ -260,11 +258,10 @@ impl QuickRow {
         QuickRow::ExitGame,
     ];
 
-    pub const SETTINGS: [QuickRow; 4] = [
+    pub const SETTINGS: [QuickRow; 3] = [
         QuickRow::PlayScreen,
         QuickRow::PlayGameplay,
         QuickRow::PlayControls,
-        QuickRow::PlaySave,
     ];
 
     pub const PLAY_SCREEN: [QuickRow; 4] = [
@@ -301,19 +298,22 @@ impl QuickRow {
             QuickRow::Wallpaper
             | QuickRow::WallpaperTint
             | QuickRow::DateTime
-            | QuickRow::Theme => &QuickRow::GENERAL,
-            QuickRow::Recents | QuickRow::ShowTitles => &QuickRow::CAROUSEL,
+            | QuickRow::Theme
+            | QuickRow::Recents
+            | QuickRow::ShowTitles
+            | QuickRow::LidOff => &QuickRow::GENERAL,
+            QuickRow::ControlsShelf | QuickRow::Shortcuts | QuickRow::ControlsInGame => {
+                &QuickRow::CONTROL_PAGES
+            }
             QuickRow::Resume | QuickRow::States | QuickRow::Settings | QuickRow::ExitGame => {
                 &QuickRow::PLAY
             }
-            QuickRow::PlayScreen
-            | QuickRow::PlayGameplay
-            | QuickRow::PlayControls
-            | QuickRow::PlaySave => &QuickRow::SETTINGS,
+            QuickRow::PlayScreen | QuickRow::PlayGameplay | QuickRow::PlayControls => {
+                &QuickRow::SETTINGS
+            }
             r if r.game_button().is_some() => &QuickRow::CONTROLS,
             r if r.shortcut().is_some() => &QuickRow::SHORTCUTS,
-            r if r.carousel_action().is_some() => &QuickRow::CAROUSEL,
-            QuickRow::SaveConsole | QuickRow::SaveGame | QuickRow::SaveRestore => &QuickRow::SAVE,
+            r if r.carousel_action().is_some() => &QuickRow::SHELF_KEYS,
             QuickRow::Shader | QuickRow::ColourCorrection | QuickRow::Palette | QuickRow::Bezel => {
                 &QuickRow::PLAY_SCREEN
             }
@@ -328,13 +328,13 @@ impl QuickRow {
             QuickRow::GbcShader => Some(QuickRow::ScreenGbc),
             QuickRow::GbShader => Some(QuickRow::ScreenGb),
             QuickRow::FastForward => Some(QuickRow::Game),
-            QuickRow::Wallpaper => Some(QuickRow::General),
             QuickRow::PlayScreen => Some(QuickRow::Settings),
             QuickRow::Shader => Some(QuickRow::PlayScreen),
-            QuickRow::GameUp => Some(QuickRow::PlayControls),
+            QuickRow::GameUp => Some(QuickRow::ControlsInGame),
             QuickRow::ScSave => Some(QuickRow::Shortcuts),
-            QuickRow::SaveConsole => Some(QuickRow::PlaySave),
-            QuickRow::Recents => Some(QuickRow::Carousel),
+            QuickRow::Theme => Some(QuickRow::General),
+            QuickRow::ControlsShelf => Some(QuickRow::Controls),
+            QuickRow::ShelfPrev => Some(QuickRow::ControlsShelf),
             _ => None,
         }
     }
@@ -342,6 +342,7 @@ impl QuickRow {
     pub fn parent_in_game(self) -> Option<QuickRow> {
         match self.parent() {
             Some(QuickRow::Game) => Some(QuickRow::PlayGameplay),
+            Some(QuickRow::ControlsInGame) => Some(QuickRow::PlayControls),
             parent => parent,
         }
     }
@@ -352,6 +353,7 @@ impl QuickRow {
             &QuickRow::PLAY,
             &QuickRow::SETTINGS,
             &QuickRow::SCREEN,
+            &QuickRow::CONTROL_PAGES,
         ]
         .contains(&self.page())
     }
@@ -360,14 +362,15 @@ impl QuickRow {
         match self {
             QuickRow::Screen => Some(QuickRow::SCREEN[0]),
             QuickRow::Game => Some(QuickRow::GAME[0]),
-            QuickRow::General => Some(QuickRow::GENERAL[0]),
             QuickRow::Settings => Some(QuickRow::SETTINGS[0]),
             QuickRow::PlayScreen => Some(QuickRow::PLAY_SCREEN[0]),
             QuickRow::PlayGameplay => Some(QuickRow::GAME[0]),
             QuickRow::PlayControls => Some(QuickRow::CONTROLS[0]),
             QuickRow::Shortcuts => Some(QuickRow::SHORTCUTS[0]),
-            QuickRow::PlaySave => Some(QuickRow::SAVE[0]),
-            QuickRow::Carousel => Some(QuickRow::CAROUSEL[0]),
+            QuickRow::General => Some(QuickRow::GENERAL[0]),
+            QuickRow::Controls => Some(QuickRow::CONTROL_PAGES[0]),
+            QuickRow::ControlsShelf => Some(QuickRow::SHELF_KEYS[0]),
+            QuickRow::ControlsInGame => Some(QuickRow::CONTROLS[0]),
             QuickRow::ScreenGba => Some(QuickRow::SCREEN_GBA[0]),
             QuickRow::ScreenGbc => Some(QuickRow::SCREEN_GBC[0]),
             QuickRow::ScreenGb => Some(QuickRow::SCREEN_GB[0]),
@@ -412,7 +415,6 @@ impl QuickRow {
             QuickRow::GbPalettes => "Palettes",
             QuickRow::Theme => "Theme",
             QuickRow::Wallpaper => "Wallpaper",
-            QuickRow::General => "General",
             QuickRow::Recents => "Recents",
             QuickRow::ShowTitles => "Game Titles",
             QuickRow::WallpaperTint => "Wallpaper Tint",
@@ -420,13 +422,13 @@ impl QuickRow {
             QuickRow::States => "States",
             QuickRow::Settings => "Settings",
             QuickRow::ExitGame => "Exit Game",
-            QuickRow::Carousel => "Carousel",
+            QuickRow::General => "General",
+            QuickRow::LidOff => "Lid Power Off",
+            QuickRow::Controls => "Controls",
+            QuickRow::ControlsShelf => "Shelf",
+            QuickRow::ControlsInGame => "In-Game",
             QuickRow::PlayControls => "Controls",
             QuickRow::Shortcuts => "Shortcuts",
-            QuickRow::PlaySave => "Save Changes",
-            QuickRow::SaveConsole => "Save for Console",
-            QuickRow::SaveGame => "Save for Game",
-            QuickRow::SaveRestore => "Restore Defaults",
             QuickRow::GameUp
             | QuickRow::GameDown
             | QuickRow::GameLeft
@@ -475,20 +477,18 @@ impl QuickRow {
                 | QuickRow::About
                 | QuickRow::Screen
                 | QuickRow::Game
-                | QuickRow::General
                 | QuickRow::Resume
                 | QuickRow::States
                 | QuickRow::Settings
                 | QuickRow::ExitGame
                 | QuickRow::PlayScreen
                 | QuickRow::PlayGameplay
-                | QuickRow::Carousel
+                | QuickRow::General
+                | QuickRow::Controls
+                | QuickRow::ControlsShelf
+                | QuickRow::ControlsInGame
                 | QuickRow::PlayControls
                 | QuickRow::Shortcuts
-                | QuickRow::PlaySave
-                | QuickRow::SaveConsole
-                | QuickRow::SaveGame
-                | QuickRow::SaveRestore
                 | QuickRow::ScreenGba
                 | QuickRow::ScreenGbc
                 | QuickRow::ScreenGb
@@ -575,10 +575,16 @@ pub enum QuickValue {
     Low,
     Medium,
     High,
+    Min1,
+    Min3,
+    Min5,
+    Min10,
+    Min15,
+    Min30,
 }
 
 impl QuickValue {
-    pub const ALL: [QuickValue; 17] = [
+    pub const ALL: [QuickValue; 23] = [
         QuickValue::Speed2,
         QuickValue::Speed3,
         QuickValue::Speed4,
@@ -596,6 +602,21 @@ impl QuickValue {
         QuickValue::Low,
         QuickValue::Medium,
         QuickValue::High,
+        QuickValue::Min1,
+        QuickValue::Min3,
+        QuickValue::Min5,
+        QuickValue::Min10,
+        QuickValue::Min15,
+        QuickValue::Min30,
+    ];
+
+    pub const LID_OFF: [QuickValue; 6] = [
+        QuickValue::Min1,
+        QuickValue::Min3,
+        QuickValue::Min5,
+        QuickValue::Min10,
+        QuickValue::Min15,
+        QuickValue::Min30,
     ];
 
     pub fn index(self) -> usize {
@@ -621,6 +642,12 @@ impl QuickValue {
             QuickValue::Low => "25%",
             QuickValue::Medium => "45%",
             QuickValue::High => "65%",
+            QuickValue::Min1 => "1 min",
+            QuickValue::Min3 => "3 min",
+            QuickValue::Min5 => "5 min",
+            QuickValue::Min10 => "10 min",
+            QuickValue::Min15 => "15 min",
+            QuickValue::Min30 => "30 min",
         }
     }
 
@@ -632,6 +659,18 @@ impl QuickValue {
             6 => Some(QuickValue::Speed6),
             _ => None,
         }
+    }
+
+    pub fn minutes(self) -> Option<u8> {
+        Some(match self {
+            QuickValue::Min1 => 1,
+            QuickValue::Min3 => 3,
+            QuickValue::Min5 => 5,
+            QuickValue::Min10 => 10,
+            QuickValue::Min15 => 15,
+            QuickValue::Min30 => 30,
+            _ => return None,
+        })
     }
 
     pub fn flag(on: bool) -> QuickValue {
@@ -762,7 +801,7 @@ pub fn quick_caret_face(right: bool) -> UndoFace {
     UndoFace { rgba, w, h }
 }
 
-pub fn quick_legend_faces(ink: [u8; 3]) -> [UndoFace; 7] {
+pub fn quick_legend_faces(ink: [u8; 3]) -> [UndoFace; 8] {
     let hint = Some(ink);
     [
         with_hint(button_face(ButtonLegend::B), "Back", hint, true),
@@ -777,6 +816,7 @@ pub fn quick_legend_faces(ink: [u8; 3]) -> [UndoFace; 7] {
         with_hint(button_face(ButtonLegend::X), "Restart", hint, false),
         with_hint(button_face(ButtonLegend::A), "Set", hint, false),
         with_hint(button_face(ButtonLegend::X), "Clear", hint, false),
+        with_hint(button_face(ButtonLegend::Y), "Reset All", hint, true),
     ]
 }
 
@@ -852,10 +892,14 @@ pub fn link_button_legends(ink: [u8; 3]) -> Vec<UndoFace> {
 }
 
 pub fn repair_legends(ink: [u8; 3]) -> [UndoFace; 2] {
+    prompt_legends(ink, "Not now", "Repair")
+}
+
+pub fn prompt_legends(ink: [u8; 3], no: &str, yes: &str) -> [UndoFace; 2] {
     let hint = Some(ink);
     [
-        with_hint(button_face(ButtonLegend::B), "Not now", hint, true),
-        with_hint(button_face(ButtonLegend::A), "Repair", hint, false),
+        with_hint(button_face(ButtonLegend::B), no, hint, true),
+        with_hint(button_face(ButtonLegend::A), yes, hint, false),
     ]
 }
 
@@ -904,8 +948,8 @@ pub struct QuickMenuFaces {
     pub pointer: (TexId, u32, u32),
     pub values: Vec<[(TexId, u32, u32); 2]>,
     pub carets: [(TexId, u32, u32); 2],
-    pub legend: [(TexId, u32); 7],
-    pub legend_light: [(TexId, u32); 7],
+    pub legend: [(TexId, u32); 8],
+    pub legend_light: [(TexId, u32); 8],
     pub descriptions: [(TexId, u32, u32); 2],
 }
 
@@ -1066,7 +1110,7 @@ fn scrolls(page: &[QuickRow]) -> bool {
     [
         &QuickRow::CONTROLS[..],
         &QuickRow::SHORTCUTS,
-        &QuickRow::CAROUSEL,
+        &QuickRow::GENERAL,
     ]
     .contains(&page)
 }

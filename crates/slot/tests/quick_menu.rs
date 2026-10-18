@@ -232,8 +232,7 @@ fn up_and_down_move_the_bar_and_wrap_at_the_ends() {
         QuickRow::General,
         QuickRow::Screen,
         QuickRow::Game,
-        QuickRow::Shortcuts,
-        QuickRow::Carousel,
+        QuickRow::Controls,
         QuickRow::About,
         QuickRow::General,
     ] {
@@ -656,6 +655,7 @@ fn fake_faces(a: &mut App) {
             (id(404), 85),
             (id(405), 75),
             (id(406), 95),
+            (id(407), 90),
         ],
         legend_light: [
             (id(400), 70),
@@ -665,6 +665,7 @@ fn fake_faces(a: &mut App) {
             (id(404), 85),
             (id(405), 75),
             (id(406), 95),
+            (id(407), 90),
         ],
         descriptions: [(id(410), 300, 44), (id(411), 340, 44)],
     });
@@ -836,12 +837,14 @@ fn the_arrows_stand_only_around_the_selected_rows_value() {
         press(&mut a, Btn::Up);
     }
     press(&mut a, Btn::A);
+    for _ in 0..QuickRow::LidOff.position(&a.hidden_rows()) {
+        press(&mut a, Btn::Down);
+    }
     let out = frame(&a);
     assert!(drawn(&out, 500), "the date and time is not grey");
 
-    for _ in 0..QuickRow::DateTime.position(&a.hidden_rows()) {
-        press(&mut a, Btn::Down);
-    }
+    press(&mut a, Btn::Down);
+    assert_eq!(a.quick_menu(), Some(QuickRow::DateTime));
     let out = frame(&a);
     assert!(
         !drawn(&out, 300) && !drawn(&out, 301),
@@ -980,6 +983,7 @@ fn no_row_in_hand_runs_its_arrows_into_its_label() {
             (id(404), 85),
             (id(405), 75),
             (id(406), 95),
+            (id(407), 90),
         ],
         legend_light: [
             (id(400), 70),
@@ -989,6 +993,7 @@ fn no_row_in_hand_runs_its_arrows_into_its_label() {
             (id(404), 85),
             (id(405), 75),
             (id(406), 95),
+            (id(407), 90),
         ],
         descriptions: [(id(410), 300, 44), (id(411), 340, 44)],
     });
@@ -998,7 +1003,6 @@ fn no_row_in_hand_runs_its_arrows_into_its_label() {
         &QuickRow::SCREEN_GB[..],
         &QuickRow::GAME[..],
         &QuickRow::GENERAL[..],
-        &QuickRow::CAROUSEL[..],
     ] {
         for &row in page {
             if row.opens() || a.hidden_rows().contains(&row) {
@@ -1091,7 +1095,7 @@ fn wallpaper_tint_hides_until_a_wallpaper_of_your_own_is_picked() {
     press(&mut a, Btn::Down);
     assert_eq!(
         a.quick_menu(),
-        Some(QuickRow::Theme),
+        Some(QuickRow::Recents),
         "the tint row showed on the default wallpaper"
     );
     press(&mut a, Btn::Up);
@@ -1108,7 +1112,7 @@ fn wallpaper_tint_hides_until_a_wallpaper_of_your_own_is_picked() {
         let below = if shown {
             QuickRow::WallpaperTint
         } else {
-            QuickRow::Theme
+            QuickRow::Recents
         };
         assert_eq!(a.quick_menu(), Some(below), "below {pick:?}");
         press(&mut a, Btn::Up);
@@ -1239,4 +1243,21 @@ fn a_frame_file_that_is_gone_reads_back_as_none() {
         ..SlotState::default()
     });
     assert_eq!(a.resolved_bezel(Platform::Gb), BezelPick::None);
+}
+
+#[test]
+fn lid_power_off_steps_through_its_minutes_wraps_and_saves() {
+    let (d, mut a, _) = on_carousel_with(SlotState {
+        lid_off_min: Some(3),
+        ..Default::default()
+    });
+    open_at(&mut a, QuickRow::LidOff);
+    assert_eq!(a.lid_off_min(), 3);
+    for want in [5, 10, 15, 30, 1, 3] {
+        press(&mut a, Btn::Right);
+        assert_eq!(a.lid_off_min(), want);
+        assert_eq!(read_slot_state(d.path()).lid_off_min, Some(want));
+    }
+    press(&mut a, Btn::Left);
+    assert_eq!(a.lid_off_min(), 1);
 }

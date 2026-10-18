@@ -1,9 +1,9 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::atomic::atomic_write;
 use crate::platform::Platform;
 
-const CONTROLS_DIR: &str = "Controls";
+const CONTROLS_FILE: &str = "controls.txt";
 const CAROUSEL_FILE: &str = "carousel.txt";
 const SHORTCUTS_FILE: &str = "shortcuts.txt";
 
@@ -443,25 +443,6 @@ pub fn write_shortcuts(root: &Path, keys: &ShortcutKeys) -> std::io::Result<()> 
     write(&root.join("Config").join(SHORTCUTS_FILE), &text)
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum Restored {
-    Console,
-    Defaults,
-}
-
-fn console_path(root: &Path, platform: Platform) -> PathBuf {
-    root.join("Config")
-        .join(CONTROLS_DIR)
-        .join(format!("{}.txt", platform.dir_name()))
-}
-
-fn game_path(root: &Path, platform: Platform, stem: &str) -> PathBuf {
-    root.join("Config")
-        .join(CONTROLS_DIR)
-        .join(platform.dir_name())
-        .join(format!("{stem}.txt"))
-}
-
 fn write(path: &Path, text: &str) -> std::io::Result<()> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
@@ -469,41 +450,13 @@ fn write(path: &Path, text: &str) -> std::io::Result<()> {
     atomic_write(path, text.as_bytes())
 }
 
-pub fn read_controls(root: &Path, platform: Platform, stem: &str) -> Controls {
-    [
-        game_path(root, platform, stem),
-        console_path(root, platform),
-    ]
-    .iter()
-    .find_map(|p| std::fs::read_to_string(p).ok())
-    .map_or_else(Controls::default, |text| Controls::parse(&text))
+pub fn read_controls(root: &Path) -> Controls {
+    std::fs::read_to_string(root.join("Config").join(CONTROLS_FILE))
+        .map_or_else(|_| Controls::default(), |text| Controls::parse(&text))
 }
 
-pub fn write_console_controls(
-    root: &Path,
-    platform: Platform,
-    c: &Controls,
-) -> std::io::Result<()> {
-    write(&console_path(root, platform), &c.text())
-}
-
-pub fn write_game_controls(
-    root: &Path,
-    platform: Platform,
-    stem: &str,
-    c: &Controls,
-) -> std::io::Result<()> {
-    write(&game_path(root, platform, stem), &c.text())
-}
-
-pub fn restore_controls(root: &Path, platform: Platform, stem: &str) -> Restored {
-    match std::fs::remove_file(game_path(root, platform, stem)) {
-        Ok(()) => Restored::Console,
-        Err(_) => {
-            let _ = std::fs::remove_file(console_path(root, platform));
-            Restored::Defaults
-        }
-    }
+pub fn write_controls(root: &Path, c: &Controls) -> std::io::Result<()> {
+    write(&root.join("Config").join(CONTROLS_FILE), &c.text())
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]

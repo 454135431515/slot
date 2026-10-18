@@ -73,7 +73,7 @@ fn press(a: &mut App, btn: Btn) {
 
 fn flip_recents(a: &mut App) {
     a.apply(Action::QuickMenu);
-    for _ in 0..QuickRow::Carousel.position(&[]) {
+    for _ in 0..QuickRow::General.position(&[]) {
         press(a, Btn::Down);
     }
     press(a, Btn::A);

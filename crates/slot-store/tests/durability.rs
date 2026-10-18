@@ -217,6 +217,7 @@ fn a_card_from_before_the_settings_keeps_all_its_values() {
             show_recents: false,
             show_titles: false,
             left_stick_dpad: true,
+            lid_off_min: None,
             bezel_gba: BezelPick::Ags102,
             bezel_gb: BezelPick::Ags102,
             bezel_gbc: BezelPick::Ags102,
@@ -554,4 +555,23 @@ fn a_card_from_before_the_gbc_split_starts_gbc_from_the_gb_c_settings() {
         (false, Shader::Off),
         "the GB settings overrode GBC's own"
     );
+}
+
+#[test]
+fn lid_power_off_minutes_round_trip_and_drop_a_value_the_menu_does_not_offer() {
+    let d = tmp_root();
+    for min in [1, 3, 5, 10, 15, 30] {
+        let s = SlotState {
+            lid_off_min: Some(min),
+            ..Default::default()
+        };
+        write_slot_state(d.path(), &s).unwrap();
+        assert_eq!(read_slot_state(d.path()).lid_off_min, Some(min));
+    }
+    let path = d.path().join("Config").join("slot.state");
+    let text = std::fs::read_to_string(&path)
+        .unwrap()
+        .replace("lid_off_min=30", "lid_off_min=7");
+    std::fs::write(&path, text).unwrap();
+    assert_eq!(read_slot_state(d.path()).lid_off_min, None);
 }

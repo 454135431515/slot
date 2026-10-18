@@ -76,12 +76,12 @@ fn with_titles_off_there_is_no_title() {
 }
 
 #[test]
-fn show_titles_is_flipped_from_the_carousel_page_and_saved() {
+fn show_titles_is_flipped_from_the_shelf_page_and_saved() {
     let d = card();
     let mut a = boot(d.path(), false);
     tick(&mut a, 3.0);
     a.apply(Action::QuickMenu);
-    for _ in 0..QuickRow::Carousel.position(&[]) {
+    for _ in 0..QuickRow::General.position(&[]) {
         press(&mut a, Btn::Down);
     }
     press(&mut a, Btn::A);
