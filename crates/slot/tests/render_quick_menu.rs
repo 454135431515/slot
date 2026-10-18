@@ -190,7 +190,7 @@ fn the_quick_menu_renders_full_screen() {
     }
     tap(&mut f, &mut input, Btn::A);
     let px = composed(&mut f, &mut c, "general-page");
-    let hidden = f.app().hidden_rows();
+    let hidden = &f.app().hidden_rows();
     for row in QuickRow::Wallpaper.shown(hidden) {
         let top = quick_row_top(row, hidden) as usize;
         let first = *inked(&px, 56..360, top)
@@ -201,7 +201,7 @@ fn the_quick_menu_renders_full_screen() {
             "{row:?}'s label starts at x {first}"
         );
     }
-    for _ in 0..QuickRow::DateTime.position(f.app().hidden_rows()) {
+    for _ in 0..QuickRow::DateTime.position(&f.app().hidden_rows()) {
         tap(&mut f, &mut input, Btn::Down);
     }
     tap(&mut f, &mut input, Btn::A);
@@ -233,7 +233,7 @@ fn every_fast_forward_speed_sits_on_the_rows_right_edge_and_clears_the_label() {
     tap(&mut f, &mut input, Btn::Left);
     tap(&mut f, &mut input, Btn::Left);
 
-    let top = quick_row_top(QuickRow::FastForward, &[]) as usize;
+    let top = quick_row_top(QuickRow::FastForward, &f.app().hidden_rows()) as usize;
     for name in ["2x", "3x", "4x", "6x", "8x"] {
         let px = composed(&mut f, &mut c, name);
         let value = inked(&px, 360..OUT_W as usize, top);
@@ -388,4 +388,39 @@ fn the_shortcuts_page_renders() {
     tap(&mut f, &mut input, Btn::A);
     assert_eq!(f.app().quick_menu(), Some(QuickRow::ScSave));
     composed(&mut f, &mut c, "shortcuts");
+}
+
+#[test]
+fn the_left_stick_row_keeps_its_label_clear_of_its_value() {
+    let Ok(surface) = HeadlessSurface::new() else {
+        return;
+    };
+    let Ok(mut c) = Compositor::new(&surface) else {
+        return;
+    };
+    let d = tmp_root_with_carts(&["Emerald", "Fusion"]);
+    clocked(d.path());
+    let mut f = Frontend::boot(Box::new(SimPlatform::at(d.path().to_path_buf())));
+    f.set_left_stick(true);
+    f.upload_faces(&mut c);
+    let mut input = Script(VecDeque::new());
+    tap(&mut f, &mut input, Btn::Menu);
+    for _ in 0..QuickRow::Game.position(&[]) {
+        tap(&mut f, &mut input, Btn::Down);
+    }
+    tap(&mut f, &mut input, Btn::A);
+    let hidden = f.app().hidden_rows();
+    for _ in 0..QuickRow::LeftStick.position(&hidden) {
+        tap(&mut f, &mut input, Btn::Down);
+    }
+    assert_eq!(f.app().quick_menu(), Some(QuickRow::LeftStick));
+    let top = quick_row_top(QuickRow::LeftStick, &hidden) as usize;
+    let px = composed(&mut f, &mut c, "left-stick");
+    let ink = inked(&px, 56..OUT_W as usize, top);
+    assert!(!ink.is_empty(), "the Left Stick row drew nothing");
+    let gap = ink.windows(2).map(|w| w[1] - w[0]).max().unwrap_or(0);
+    assert!(
+        gap >= 24,
+        "the label runs into the value, widest gap {gap} px"
+    );
 }

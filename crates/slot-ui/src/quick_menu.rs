@@ -82,10 +82,11 @@ pub enum QuickRow {
     SaveConsole,
     SaveGame,
     SaveRestore,
+    LeftStick,
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 72] = [
+    pub const ALL: [QuickRow; 73] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Screen,
@@ -158,6 +159,7 @@ impl QuickRow {
         QuickRow::SaveConsole,
         QuickRow::SaveGame,
         QuickRow::SaveRestore,
+        QuickRow::LeftStick,
     ];
 
     pub const MAIN: [QuickRow; 6] = [
@@ -241,12 +243,13 @@ impl QuickRow {
         QuickRow::GbBezel,
     ];
 
-    pub const GAME: [QuickRow; 6] = [
+    pub const GAME: [QuickRow; 7] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Rewind,
         QuickRow::Turbo,
         QuickRow::Rumble,
+        QuickRow::LeftStick,
         QuickRow::EjectSave,
     ];
 
@@ -293,6 +296,7 @@ impl QuickRow {
             | QuickRow::Rewind
             | QuickRow::Turbo
             | QuickRow::Rumble
+            | QuickRow::LeftStick
             | QuickRow::EjectSave => &QuickRow::GAME,
             QuickRow::Wallpaper
             | QuickRow::WallpaperTint
@@ -392,6 +396,7 @@ impl QuickRow {
             QuickRow::FastForwardSound => "Fast Forward Sound",
             QuickRow::Screen => "Screen",
             QuickRow::Rumble => "Rumble",
+            QuickRow::LeftStick => "Left Stick as D-Pad",
             QuickRow::DateTime => "Date & Time",
             QuickRow::About => "About",
             QuickRow::GbaShader => "Shader",

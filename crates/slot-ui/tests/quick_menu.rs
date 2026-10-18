@@ -126,6 +126,7 @@ fn the_rows_run_in_the_order_the_user_chose() {
             "Rewind",
             "Turbo Buttons",
             "Rumble",
+            "Left Stick as D-Pad",
             "Auto Save on Eject"
         ]
     );

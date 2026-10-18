@@ -127,6 +127,8 @@ pub fn run() {
     slot::boot_time::mark("audio");
     let mut frontend = Frontend::boot_with(Box::new(platform), sink);
     slot::boot_time::mark("frontend");
+    let target = slot::baseos::var("BASEOS_TARGET").unwrap_or_default();
+    frontend.set_left_stick(slot::input::evdev::has_left_stick(&target));
     frontend.upload_boot_faces(&mut compositor);
     slot::boot_time::mark("faces");
     frontend.upload_bezel(&mut compositor, window);
@@ -144,6 +146,7 @@ pub fn run() {
     loop {
         pacer.wait();
         let began = Instant::now();
+        input.steer_with_stick(frontend.app().left_stick_dpad());
         frontend.advance(&mut input);
         if frontend.restarting() {
             frontend.restart();

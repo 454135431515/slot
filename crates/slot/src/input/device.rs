@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -19,6 +20,7 @@ const LID_POLL_MS: Millis = 150;
 
 pub struct DeviceInput {
     pending: Arc<Mutex<Vec<RawEvent>>>,
+    stick: Arc<AtomicBool>,
     hall: Option<PathBuf>,
     lid_shut: Option<bool>,
     next_lid_poll: Millis,
@@ -36,6 +38,7 @@ impl DeviceInput {
 
     fn open_traced(dev: &Path, sys: &Path, trace: Option<Arc<Trace>>) -> Self {
         let pending: Arc<Mutex<Vec<RawEvent>>> = Arc::new(Mutex::new(Vec::new()));
+        let stick = Arc::new(AtomicBool::new(false));
         for node in pick_devices(dev, sys) {
             eprintln!(
                 "slot: input {} ({})",
@@ -44,17 +47,19 @@ impl DeviceInput {
             );
             quicken_poll(sys, &node);
             let queue = pending.clone();
+            let steers = stick.clone();
             let name = node.display().to_string();
             let trace = trace.clone();
             let spawned = std::thread::Builder::new()
                 .name(format!("slot-input-{name}"))
-                .spawn(move || read_node(&node, &queue, trace.as_deref()));
+                .spawn(move || read_node(&node, &queue, &steers, trace.as_deref()));
             if let Err(e) = spawned {
                 eprintln!("slot: input {name}: {e}");
             }
         }
         DeviceInput {
             pending,
+            stick,
             hall: find_hall(Path::new(PSY)),
             lid_shut: None,
             next_lid_poll: 0,
@@ -86,7 +91,12 @@ fn quicken_poll(sys: &Path, node: &Path) {
     }
 }
 
-fn read_node(node: &Path, queue: &Mutex<Vec<RawEvent>>, trace: Option<&Trace>) {
+fn read_node(
+    node: &Path,
+    queue: &Mutex<Vec<RawEvent>>,
+    steers: &AtomicBool,
+    trace: Option<&Trace>,
+) {
     let label = node
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
@@ -119,7 +129,10 @@ fn read_node(node: &Path, queue: &Mutex<Vec<RawEvent>>, trace: Option<&Trace>) {
                 crate::latency::read();
             }
             match ev.kind {
-                EV_ABS => events.extend(hat.feed(ev)),
+                EV_ABS => {
+                    hat.steer_with_stick(steers.load(Ordering::Relaxed));
+                    events.extend(hat.feed(ev));
+                }
                 _ => events.extend(to_raw(ev)),
             }
         }
@@ -173,6 +186,10 @@ impl Trace {
 }
 
 impl DeviceInput {
+    pub fn steer_with_stick(&self, on: bool) {
+        self.stick.store(on, Ordering::Relaxed);
+    }
+
     fn read_lid(&self) -> Option<bool> {
         let raw = std::fs::read_to_string(self.hall.as_ref()?).ok()?;
         match raw.trim() {

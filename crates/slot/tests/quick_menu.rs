@@ -54,7 +54,7 @@ fn open_at(a: &mut App, row: QuickRow) {
         if depth > 0 {
             press(a, Btn::A);
         }
-        for _ in 0..step.position(a.hidden_rows()) {
+        for _ in 0..step.position(&a.hidden_rows()) {
             press(a, Btn::Down);
         }
     }
@@ -839,7 +839,7 @@ fn the_arrows_stand_only_around_the_selected_rows_value() {
     let out = frame(&a);
     assert!(drawn(&out, 500), "the date and time is not grey");
 
-    for _ in 0..QuickRow::DateTime.position(a.hidden_rows()) {
+    for _ in 0..QuickRow::DateTime.position(&a.hidden_rows()) {
         press(&mut a, Btn::Down);
     }
     let out = frame(&a);
@@ -888,7 +888,7 @@ fn labels_leave_room_for_the_pointer_and_values_end_thirty_two_pixels_in() {
     open_at(&mut a, QuickRow::FastForward);
     let out = frame(&a);
     let right = OUT_W as f32 - QUICK_EDGE;
-    for row in QuickRow::GAME {
+    for row in QuickRow::FastForward.shown(&a.hidden_rows()) {
         let lit = row == QuickRow::FastForward;
         let [x, ..] = placed(&out, label(row, lit)).expect("a label was not drawn");
         assert_eq!(x + MENU_PAD as f32, QUICK_LABEL_X, "{row:?}'s label");

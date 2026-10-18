@@ -362,6 +362,7 @@ pub struct App {
     act_at: Millis,
     root: Option<PathBuf>,
     state: SlotState,
+    left_stick: bool,
     controls: Controls,
     controls_for: Option<(Platform, String)>,
     capture: Option<BindCapture>,
@@ -537,6 +538,7 @@ impl App {
             act_at: 0,
             root: None,
             state: SlotState::default(),
+            left_stick: false,
             controls: Controls::default(),
             controls_for: None,
             capture: None,
@@ -893,6 +895,9 @@ impl App {
         if self.playing_platform() != Platform::Gba {
             hidden.extend([QuickRow::GameL, QuickRow::GameR]);
         }
+        if !self.left_stick {
+            hidden.push(QuickRow::LeftStick);
+        }
         hidden
     }
 
@@ -938,6 +943,7 @@ impl App {
             QuickRow::GbShader => Some(shader_value(self.state.shader_gb)),
             QuickRow::GbcShader => Some(shader_value(self.state.shader_gbc)),
             QuickRow::Rumble => Some(QuickValue::flag(self.state.rumble)),
+            QuickRow::LeftStick => Some(QuickValue::flag(self.state.left_stick_dpad)),
             QuickRow::EjectSave => Some(QuickValue::flag(self.state.eject_save)),
             QuickRow::Turbo => Some(QuickValue::flag(self.state.turbo)),
             QuickRow::Rewind => Some(QuickValue::flag(self.state.rewind)),
@@ -1203,17 +1209,22 @@ impl App {
         }
     }
 
-    pub fn hidden_rows(&self) -> &'static [QuickRow] {
+    pub fn hidden_rows(&self) -> Vec<QuickRow> {
         let own = matches!(
             self.state.wallpaper,
             WallpaperPick::File(_) | WallpaperPick::Random
         );
-        match (own, self.framed_panel()) {
-            (true, true) => &[],
-            (true, false) => &[QuickRow::GbaBezel],
-            (false, true) => &[QuickRow::WallpaperTint],
-            (false, false) => &[QuickRow::WallpaperTint, QuickRow::GbaBezel],
+        let mut hidden = Vec::new();
+        if !own {
+            hidden.push(QuickRow::WallpaperTint);
         }
+        if !self.framed_panel() {
+            hidden.push(QuickRow::GbaBezel);
+        }
+        if !self.left_stick {
+            hidden.push(QuickRow::LeftStick);
+        }
+        hidden
     }
 
     fn random_drawn(&self) -> bool {
@@ -1563,7 +1574,7 @@ impl App {
             self.in_game_menu = Some(row.down(&hidden));
         } else if let Phase::QuickMenu { .. } = self.phase {
             self.phase = Phase::QuickMenu {
-                row: row.down(self.hidden_rows()),
+                row: row.down(&self.hidden_rows()),
             };
         }
     }
@@ -1912,6 +1923,14 @@ impl App {
 
     pub fn rumble_enabled(&self) -> bool {
         self.state.rumble
+    }
+
+    pub fn set_left_stick(&mut self, present: bool) {
+        self.left_stick = present;
+    }
+
+    pub fn left_stick_dpad(&self) -> bool {
+        self.left_stick && self.state.left_stick_dpad
     }
 
     pub fn ff_speed(&self) -> u8 {
@@ -2270,8 +2289,8 @@ impl App {
             }
         }
         let row = match action {
-            Action::GbaDown(Btn::Up) => row.up(self.hidden_rows()),
-            Action::GbaDown(Btn::Down) => row.down(self.hidden_rows()),
+            Action::GbaDown(Btn::Up) => row.up(&self.hidden_rows()),
+            Action::GbaDown(Btn::Down) => row.down(&self.hidden_rows()),
             Action::GbaDown(Btn::Left) => return self.change_setting(row, false),
             Action::GbaDown(Btn::Right) => return self.change_setting(row, true),
             Action::GbaDown(Btn::A) => return self.open_quick_row(row),
@@ -2375,7 +2394,7 @@ impl App {
             | QuickRow::Shortcuts
             | QuickRow::Carousel => {
                 if let Some(row) = row.child() {
-                    let row = row.shown(self.hidden_rows())[0];
+                    let row = row.shown(&self.hidden_rows())[0];
                     self.phase = Phase::QuickMenu { row };
                 }
             }
@@ -2392,6 +2411,7 @@ impl App {
             | QuickRow::GbcShader
             | QuickRow::GbPalettes
             | QuickRow::Rumble
+            | QuickRow::LeftStick
             | QuickRow::Theme
             | QuickRow::Recents
             | QuickRow::ShowTitles
@@ -2526,6 +2546,7 @@ impl App {
                 s.shader_gbc = to;
             }
             QuickRow::Rumble => s.rumble = !s.rumble,
+            QuickRow::LeftStick => s.left_stick_dpad = !s.left_stick_dpad,
             QuickRow::EjectSave => s.eject_save = !s.eject_save,
             QuickRow::Turbo => s.turbo = !s.turbo,
             QuickRow::Rewind => s.rewind = !s.rewind,
@@ -3423,7 +3444,7 @@ impl App {
             }
             Phase::QuickMenu { row } => QuickMenu {
                 row: *row,
-                hidden: self.hidden_rows(),
+                hidden: &self.hidden_rows(),
                 bound: Some(&self.bound_faces()),
                 description: self.description(*row),
                 values: QuickRow::ALL.map(|r| self.quick_value(r)),
