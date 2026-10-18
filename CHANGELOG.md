@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Sound starting again after a quiet stretch no longer leaves the audio buffer thin for the next few seconds, when a slow frame could make it crackle. Thanks to bcena for the log that found it.
+
 ## [1.8.0](https://github.com/BrandonKowalski/slot/releases/tag/v1.8.0)
 
 - When the SD card turns read-only, SELECT + START repairs it: slot steps aside, checks FAT32 or exFAT, and restarts. (#72, #111)
