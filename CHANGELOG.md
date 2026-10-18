@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Starting a game such as Metroid Fusion or Golden Sun without a resume state no longer leaves up to 96 KB of empty space in every save state and rewind snapshot for the rest of that session, so rewind reaches 4 to 8% further back.
+
 ## [1.8.0](https://github.com/BrandonKowalski/slot/releases/tag/v1.8.0)
 
 - When the SD card turns read-only, SELECT + START repairs it: slot steps aside, checks FAT32 or exFAT, and restarts. (#72, #111)
