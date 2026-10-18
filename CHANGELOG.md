@@ -5,6 +5,7 @@
 - Run-Ahead no longer holds a game's own save back: what the game writes reaches the card straight away, as with Run-Ahead off. (#104, @454135431515)
 - Run-Ahead no longer knocks the GBA's programmable sound channels off pitch and off time. Notes play as they do with it off. (#112, @454135431515)
 - On mGBA, loading a state or rewinding now also takes the game's own save back to that moment.
+- Sound starting again after a quiet stretch no longer leaves the audio buffer thin for the next few seconds, when a slow frame could make it crackle. Thanks to bcena for the log that found it.
 
 ## [1.7.0](https://github.com/BrandonKowalski/slot/releases/tag/v1.7.0)
 
