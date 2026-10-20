@@ -564,6 +564,7 @@ impl Worker {
         let mut served = 0u64;
         let mut ticked = false;
         let mut paced = 0u64;
+        let (mut skipped_ticks, mut over_budget, mut worst_core) = (0u64, 0u32, Duration::ZERO);
         let mut scale = 0.0f64;
         let mut rate = TickRate::new(Instant::now(), 0);
         let mut stalled = false;
@@ -751,6 +752,10 @@ impl Worker {
                     }
                 }
                 let core_time = began.elapsed();
+                worst_core = worst_core.max(core_time);
+                if core_time > PRESENT {
+                    over_budget += 1;
+                }
                 if ahead == 0 {
                     cost.measured(skipped, drawn);
                 }
@@ -848,8 +853,11 @@ impl Worker {
                     if crate::session::trace() && paced.is_multiple_of(TRACE_EVERY) {
                         let (dropped, starved) = (ring.overruns(), ring.underruns());
                         eprintln!(
-                            "slot: audio: {queued}/{target} queued, {dropped} dropped, {starved} starved, locked {lock} at {scale:.5}"
+                            "slot: audio: {queued}/{target} queued, {dropped} dropped, {starved} starved, locked {lock} at {scale:.5}, {skipped_ticks} ticks skipped, {over_budget} over {:.1} ms, worst {:.1} ms",
+                            PRESENT.as_secs_f64() * 1e3,
+                            worst_core.as_secs_f64() * 1e3
                         );
+                        (skipped_ticks, over_budget, worst_core) = (0, 0, Duration::ZERO);
                     }
                 }
             }
@@ -864,6 +872,7 @@ impl Worker {
                 loop {
                     match self.next_tick(served, until) {
                         Wait::Tick(tick) => {
+                            skipped_ticks += tick.saturating_sub(served + 1);
                             served = tick;
                             stalled = false;
                             if let Some(measured) = rate.served(Instant::now(), tick) {
